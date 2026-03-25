@@ -16,6 +16,7 @@ const Index = () => {
   const [borderSize, setBorderSize] = useState(80);
   const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
+  const [deviceScale, setDeviceScale] = useState(100);
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -250,6 +251,21 @@ const Index = () => {
               step={4}
             />
           </div>
+
+          {/* Device scale */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Device Scale</Label>
+              <span className="text-xs text-muted-foreground tabular-nums">{deviceScale}%</span>
+            </div>
+            <Slider
+              value={[deviceScale]}
+              onValueChange={(v) => setDeviceScale(v[0])}
+              min={30}
+              max={200}
+              step={1}
+            />
+          </div>
         </aside>
 
         {/* Canvas preview */}
@@ -277,7 +293,7 @@ const Index = () => {
                     : "none",
                 }}
               >
-                <div className="flex items-center justify-center" style={{ transform: "scale(1)", transformOrigin: "center" }}>
+                <div className="flex items-center justify-center" style={{ transform: `scale(${deviceScale / 100})`, transformOrigin: "center" }}>
                   <DeviceFrame device={device} image={image} />
                 </div>
               </div>
