@@ -266,6 +266,7 @@ const Index = () => {
               step={1}
             />
           </div>
+        </aside>
 
         {/* Canvas preview */}
         <main className="flex-1 overflow-auto p-6 lg:p-10 flex items-center justify-center bg-background">
