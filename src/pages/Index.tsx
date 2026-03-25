@@ -293,7 +293,7 @@ const Index = () => {
                     : "none",
                 }}
               >
-                <div className="flex items-center justify-center" style={{ transform: "scale(1)", transformOrigin: "center" }}>
+                <div className="flex items-center justify-center" style={{ transform: `scale(${deviceScale / 100})`, transformOrigin: "center" }}>
                   <DeviceFrame device={device} image={image} />
                 </div>
               </div>
