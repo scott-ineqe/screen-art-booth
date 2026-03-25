@@ -32,12 +32,24 @@ const Index = () => {
     if (!canvasRef.current) return;
     setExporting(true);
     try {
-      const dataUrl = await toPng(canvasRef.current, {
+      // Temporarily remove checkerboard for transparent export
+      const el = canvasRef.current;
+      const origBg = el.style.backgroundImage;
+      if (transparent) {
+        el.style.backgroundImage = "none";
+        el.style.backgroundColor = "transparent";
+      }
+      const dataUrl = await toPng(el, {
         width: canvasWidth,
         height: canvasHeight,
         pixelRatio: 2,
         cacheBust: true,
+        backgroundColor: transparent ? undefined : undefined,
       });
+      // Restore
+      if (transparent) {
+        el.style.backgroundImage = origBg;
+      }
       const link = document.createElement("a");
       link.download = `mockup-${device}-${canvasWidth}x${canvasHeight}.png`;
       link.href = dataUrl;
@@ -47,7 +59,7 @@ const Index = () => {
     } finally {
       setExporting(false);
     }
-  }, [canvasWidth, canvasHeight, device]);
+  }, [canvasWidth, canvasHeight, device, transparent]);
 
   const deviceIcons = {
     iphone: <Smartphone className="w-4 h-4" />,
