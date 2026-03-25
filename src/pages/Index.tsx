@@ -251,7 +251,21 @@ const Index = () => {
               step={4}
             />
           </div>
-        </aside>
+
+          {/* Device scale */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Device Scale</Label>
+              <span className="text-xs text-muted-foreground tabular-nums">{deviceScale}%</span>
+            </div>
+            <Slider
+              value={[deviceScale]}
+              onValueChange={(v) => setDeviceScale(v[0])}
+              min={30}
+              max={200}
+              step={1}
+            />
+          </div>
 
         {/* Canvas preview */}
         <main className="flex-1 overflow-auto p-6 lg:p-10 flex items-center justify-center bg-background">
