@@ -14,6 +14,8 @@ const Index = () => {
   const [canvasWidth, setCanvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(900);
   const [borderSize, setBorderSize] = useState(80);
+  const [bgColor, setBgColor] = useState("#ffffff");
+  const [transparent, setTransparent] = useState(false);
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,12 +32,24 @@ const Index = () => {
     if (!canvasRef.current) return;
     setExporting(true);
     try {
-      const dataUrl = await toPng(canvasRef.current, {
+      // Temporarily remove checkerboard for transparent export
+      const el = canvasRef.current;
+      const origBg = el.style.backgroundImage;
+      if (transparent) {
+        el.style.backgroundImage = "none";
+        el.style.backgroundColor = "transparent";
+      }
+      const dataUrl = await toPng(el, {
         width: canvasWidth,
         height: canvasHeight,
         pixelRatio: 2,
         cacheBust: true,
+        backgroundColor: transparent ? undefined : undefined,
       });
+      // Restore
+      if (transparent) {
+        el.style.backgroundImage = origBg;
+      }
       const link = document.createElement("a");
       link.download = `mockup-${device}-${canvasWidth}x${canvasHeight}.png`;
       link.href = dataUrl;
@@ -45,7 +59,7 @@ const Index = () => {
     } finally {
       setExporting(false);
     }
-  }, [canvasWidth, canvasHeight, device]);
+  }, [canvasWidth, canvasHeight, device, transparent]);
 
   const deviceIcons = {
     iphone: <Smartphone className="w-4 h-4" />,
@@ -115,28 +129,51 @@ const Index = () => {
           {/* Canvas dimensions */}
           <div className="space-y-4">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Canvas Size</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+            
+            {/* Width */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
                 <label className="text-xs text-muted-foreground">Width</label>
                 <Input
                   type="number"
                   value={canvasWidth}
-                  onChange={(e) => setCanvasWidth(Math.max(400, Number(e.target.value)))}
+                  onChange={(e) => setCanvasWidth(Math.min(4000, Math.max(400, Number(e.target.value))))}
                   min={400}
                   max={4000}
+                  className="w-20 h-7 text-xs text-right"
                 />
               </div>
-              <div className="space-y-1.5">
+              <Slider
+                value={[canvasWidth]}
+                onValueChange={(v) => setCanvasWidth(v[0])}
+                min={400}
+                max={4000}
+                step={10}
+              />
+            </div>
+
+            {/* Height */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
                 <label className="text-xs text-muted-foreground">Height</label>
                 <Input
                   type="number"
                   value={canvasHeight}
-                  onChange={(e) => setCanvasHeight(Math.max(400, Number(e.target.value)))}
+                  onChange={(e) => setCanvasHeight(Math.min(4000, Math.max(400, Number(e.target.value))))}
                   min={400}
                   max={4000}
+                  className="w-20 h-7 text-xs text-right"
                 />
               </div>
+              <Slider
+                value={[canvasHeight]}
+                onValueChange={(v) => setCanvasHeight(v[0])}
+                min={400}
+                max={4000}
+                step={10}
+              />
             </div>
+
             {/* Quick presets */}
             <div className="flex gap-2 flex-wrap">
               {[
@@ -156,10 +193,53 @@ const Index = () => {
             </div>
           </div>
 
+          {/* Background */}
+          <div className="space-y-3">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Background</Label>
+            
+            {/* Transparent toggle */}
+            <button
+              onClick={() => setTransparent(!transparent)}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border text-xs font-medium transition-all ${
+                transparent
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:border-primary/30"
+              }`}
+            >
+              {/* Checkerboard icon */}
+              <div className="w-5 h-5 rounded border border-border overflow-hidden grid grid-cols-2 grid-rows-2 shrink-0">
+                <div className="bg-white" /><div className="bg-gray-300" />
+                <div className="bg-gray-300" /><div className="bg-white" />
+              </div>
+              Transparent
+            </button>
+
+            {/* Color picker - only show when not transparent */}
+            {!transparent && (
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={bgColor}
+                  onChange={(e) => setBgColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent p-0.5"
+                />
+                <Input
+                  value={bgColor}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setBgColor(v);
+                  }}
+                  placeholder="#ffffff"
+                  className="flex-1 h-10 font-mono text-sm uppercase"
+                />
+              </div>
+            )}
+          </div>
+
           {/* Border size */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">White Border</Label>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Padding</Label>
               <span className="text-xs text-muted-foreground tabular-nums">{borderSize}px</span>
             </div>
             <Slider
@@ -191,7 +271,10 @@ const Index = () => {
                   width: canvasWidth,
                   height: canvasHeight,
                   padding: borderSize,
-                  backgroundColor: "#ffffff",
+                  backgroundColor: transparent ? "transparent" : bgColor,
+                  backgroundImage: transparent
+                    ? "repeating-conic-gradient(#d4d4d4 0% 25%, transparent 0% 50%) 0 0 / 20px 20px"
+                    : "none",
                 }}
               >
                 <div className="flex items-center justify-center" style={{ transform: "scale(1)", transformOrigin: "center" }}>
