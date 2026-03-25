@@ -259,7 +259,10 @@ const Index = () => {
                   width: canvasWidth,
                   height: canvasHeight,
                   padding: borderSize,
-                  backgroundColor: "#ffffff",
+                  backgroundColor: transparent ? "transparent" : bgColor,
+                  backgroundImage: transparent
+                    ? "repeating-conic-gradient(#d4d4d4 0% 25%, transparent 0% 50%) 0 0 / 20px 20px"
+                    : "none",
                 }}
               >
                 <div className="flex items-center justify-center" style={{ transform: "scale(1)", transformOrigin: "center" }}>
