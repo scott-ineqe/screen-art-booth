@@ -16,6 +16,7 @@ const Index = () => {
   const [borderSize, setBorderSize] = useState(80);
   const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
+  const [deviceScale, setDeviceScale] = useState(100);
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
