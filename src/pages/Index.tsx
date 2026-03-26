@@ -1,10 +1,10 @@
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import DeviceFrame, { type DeviceType, deviceConfigs } from "@/components/DeviceFrame";
+import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon } from "lucide-react";
 
 // Fixed 16:9 canvas
@@ -20,6 +20,8 @@ const Index = () => {
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const scaleFactor = deviceScale / 100;
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,15 +41,12 @@ const Index = () => {
         el.style.backgroundImage = "none";
         el.style.backgroundColor = "transparent";
       }
-      const dataUrl = await toPng(el, {
-        pixelRatio: 2,
-        cacheBust: true,
-      });
+      const dataUrl = await toPng(el, { pixelRatio: 2, cacheBust: true });
       if (transparent) {
         el.style.backgroundImage = origBg;
       }
       const link = document.createElement("a");
-      link.download = `mockup-${device}-${canvasWidth}x${canvasHeight}.png`;
+      link.download = `mockup-${device}-${CANVAS_WIDTH}x${CANVAS_HEIGHT}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -55,7 +54,7 @@ const Index = () => {
     } finally {
       setExporting(false);
     }
-  }, [canvasWidth, canvasHeight, device, transparent]);
+  }, [device, transparent]);
 
   const deviceIcons = {
     iphone: <Smartphone className="w-4 h-4" />,
@@ -63,12 +62,10 @@ const Index = () => {
     macbook: <Laptop className="w-4 h-4" />,
   };
 
-  // Scale preview to fit the viewport
-  const previewScale = Math.min(1, 800 / canvasWidth, 700 / canvasHeight);
+  const previewScale = Math.min(1, 800 / CANVAS_WIDTH, 700 / CANVAS_HEIGHT);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
       <header className="border-b border-border bg-card px-6 py-4">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -88,23 +85,16 @@ const Index = () => {
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row">
-        {/* Sidebar controls */}
         <aside className="w-full lg:w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-6 space-y-6 shrink-0 overflow-y-auto">
-          {/* Upload */}
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Screenshot</Label>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-            <Button
-              variant="outline"
-              className="w-full gap-2 h-11"
-              onClick={() => fileInputRef.current?.click()}
-            >
+            <Button variant="outline" className="w-full gap-2 h-11" onClick={() => fileInputRef.current?.click()}>
               <Upload className="w-4 h-4" />
               {image ? "Replace image" : "Upload image"}
             </Button>
           </div>
 
-          {/* Device select */}
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Device</Label>
             <div className="grid grid-cols-3 gap-2">
@@ -125,40 +115,22 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Device scale */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Device Scale</Label>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Device Size</Label>
               <span className="text-xs text-muted-foreground tabular-nums">{deviceScale}%</span>
             </div>
             <Slider
               value={[deviceScale]}
               onValueChange={(v) => setDeviceScale(v[0])}
-              min={30}
-              max={200}
+              min={10}
+              max={150}
               step={1}
             />
           </div>
 
-          {/* Padding */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Padding</Label>
-              <span className="text-xs text-muted-foreground tabular-nums">{borderSize}px</span>
-            </div>
-            <Slider
-              value={[borderSize]}
-              onValueChange={(v) => setBorderSize(v[0])}
-              min={0}
-              max={300}
-              step={4}
-            />
-          </div>
-
-          {/* Background */}
           <div className="space-y-3">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Background</Label>
-            
             <button
               onClick={() => setTransparent(!transparent)}
               className={`w-full flex items-center gap-3 p-3 rounded-xl border text-xs font-medium transition-all ${
@@ -173,7 +145,6 @@ const Index = () => {
               </div>
               Transparent
             </button>
-
             {!transparent && (
               <div className="flex items-center gap-3">
                 <input
@@ -195,30 +166,21 @@ const Index = () => {
             )}
           </div>
 
-          {/* Output info */}
           <div className="rounded-xl border border-border p-3 space-y-1">
             <p className="text-xs text-muted-foreground">Export size</p>
-            <p className="text-sm font-medium text-foreground tabular-nums">{canvasWidth} × {canvasHeight}px</p>
+            <p className="text-sm font-medium text-foreground tabular-nums">{CANVAS_WIDTH} × {CANVAS_HEIGHT}px</p>
           </div>
         </aside>
 
-        {/* Canvas preview */}
         <main className="flex-1 overflow-auto p-6 lg:p-10 flex items-center justify-center bg-background">
           <div className="relative">
-            <div
-              className="origin-center"
-              style={{
-                width: canvasWidth * previewScale,
-                height: canvasHeight * previewScale,
-              }}
-            >
+            <div style={{ width: CANVAS_WIDTH * previewScale, height: CANVAS_HEIGHT * previewScale }}>
               <div
                 ref={canvasRef}
                 className="flex items-center justify-center origin-top-left"
                 style={{
-                  width: canvasWidth,
-                  height: canvasHeight,
-                  padding: borderSize,
+                  width: CANVAS_WIDTH,
+                  height: CANVAS_HEIGHT,
                   transform: `scale(${previewScale})`,
                   backgroundColor: transparent ? "transparent" : bgColor,
                   backgroundImage: transparent
@@ -228,17 +190,14 @@ const Index = () => {
               >
                 <div
                   className="flex items-center justify-center"
-                  style={{
-                    transform: `scale(${scaleFactor})`,
-                    transformOrigin: "center",
-                  }}
+                  style={{ transform: `scale(${scaleFactor})`, transformOrigin: "center" }}
                 >
                   <DeviceFrame device={device} image={image} />
                 </div>
               </div>
             </div>
             <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-muted-foreground tabular-nums">
-              {canvasWidth} × {canvasHeight}
+              {CANVAS_WIDTH} × {CANVAS_HEIGHT}
             </div>
           </div>
         </main>
