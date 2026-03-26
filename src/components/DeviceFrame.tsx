@@ -1,13 +1,11 @@
 import React from "react";
 
-// Updated to match the latest devices and your uploaded files
-export type DeviceType = "iphone17" | "ipad-air" | "macbook-pro-16";
+export type DeviceType = "iphone16pro" | "iphone16" | "ipadpro13" | "ipadair13" | "macbook14" | "macbook16";
 
 interface DeviceConfig {
   label: string;
-  localPath: string;
+  frameUrl: string;
   aspectRatio: number;
-  // Percentage coordinates to place the screen perfectly within the frame
   screenArea: {
     top: string;
     left: string;
@@ -18,55 +16,102 @@ interface DeviceConfig {
 }
 
 const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
-  "iphone17": {
-    label: "iPhone 17",
-    localPath: "/frames/iphone-17.png",
+  iphone16pro: {
+    label: "iPhone 16 Pro",
+    frameUrl: "/frames/iphone-16-pro.png", // Ensure these match your local filenames
+    aspectRatio: 1206 / 2622,
+    screenArea: { 
+      top: "1.9%", 
+      left: "4.2%", 
+      width: "91.6%", 
+      height: "96.2%", 
+      borderRadius: "50px" 
+    }
+  },
+  iphone16: {
+    label: "iPhone 16",
+    frameUrl: "/frames/iphone-16.png",
     aspectRatio: 1179 / 2556,
-    screenArea: { top: "2.4%", left: "5.4%", width: "89.2%", height: "95.2%", borderRadius: "42px" }
+    screenArea: { 
+      top: "2.3%", 
+      left: "4.8%", 
+      width: "90.4%", 
+      height: "95.4%", 
+      borderRadius: "44px" 
+    }
   },
-  "ipad-air": {
-    label: "iPad Air",
-    localPath: "/frames/ipad-air.png",
+  ipadpro13: {
+    label: "iPad Pro 13 (M4)",
+    frameUrl: "/frames/ipad-pro-13.png",
+    aspectRatio: 2752 / 2064,
+    screenArea: { 
+      top: "3.2%", 
+      left: "3.2%", 
+      width: "93.6%", 
+      height: "93.6%", 
+      borderRadius: "18px" 
+    }
+  },
+  ipadair13: {
+    label: "iPad Air 13 (M2)",
+    frameUrl: "/frames/ipad-air.png",
     aspectRatio: 2732 / 2048,
-    screenArea: { top: "4.2%", left: "4.2%", width: "91.6%", height: "91.6%", borderRadius: "12px" }
+    screenArea: { 
+      top: "3.8%", 
+      left: "3.8%", 
+      width: "92.4%", 
+      height: "92.4%", 
+      borderRadius: "14px" 
+    }
   },
-  "macbook-pro-16": {
+  macbook14: {
+    label: "MacBook Pro 14",
+    frameUrl: "/frames/macbook-14.png",
+    aspectRatio: 3024 / 1964,
+    screenArea: { 
+      top: "5.2%", 
+      left: "9.8%", 
+      width: "80.4%", 
+      height: "82.6%", 
+      borderRadius: "4px" 
+    }
+  },
+  macbook16: {
     label: "MacBook Pro 16",
-    localPath: "/frames/macbook-pro-16.png",
+    frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { top: "5.1%", left: "9.6%", width: "80.8%", height: "83.8%", borderRadius: "4px" }
+    screenArea: { 
+      top: "4.8%", 
+      left: "9.2%", 
+      width: "81.6%", 
+      height: "84.4%", 
+      borderRadius: "4px" 
+    }
   }
 };
 
-interface DeviceFrameProps {
-  device: DeviceType;
-  image: string | null;
-  dropShadow?: number;
-}
-
-const DeviceFrame: React.FC<DeviceFrameProps> = ({ device, image, dropShadow = 0 }) => {
-  const config = DEVICE_CONFIGS[device];
+const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShadow: number }> = ({ device, image, dropShadow }) => {
+  const config = DEVICE_CONFIGS[device] || DEVICE_CONFIGS.iphone16pro;
   
   return (
     <div 
       className="relative transition-all duration-300"
       style={{
-        // Responsive sizing based on device category
-        width: device.includes("macbook") ? 850 : (device.includes("ipad") ? 600 : 340),
+        width: device.includes("macbook") ? 850 : (device.includes("ipad") ? 620 : 340),
         aspectRatio: `${config.aspectRatio}`,
-        filter: dropShadow > 0 ? `drop-shadow(0 ${10 + dropShadow * 0.5}px ${25 + dropShadow * 1.5}px rgba(0,0,0,${0.2 + dropShadow * 0.01}))` : undefined,
+        filter: dropShadow > 0 ? `drop-shadow(0 ${15 + dropShadow * 0.5}px ${30 + dropShadow * 1.5}px rgba(0,0,0,${0.25 + dropShadow * 0.01}))` : undefined,
       }}
     >
-      {/* 1. The Physical Device Frame (Actual Photo) */}
+      {/* Actual Device Photo (PNG) */}
       <img 
-        src={config.localPath} 
+        src={config.frameUrl} 
         alt={config.label} 
         className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain"
       />
 
-      {/* 2. The Interactive Screen Container */}
+      {/* Screen Content Container - Now using object-fill to prevent gaps */}
       <div 
-        className="absolute z-10 overflow-hidden bg-black flex items-center justify-center"
+        className="absolute z-10 overflow-hidden bg-black"
         style={{
           top: config.screenArea.top,
           left: config.screenArea.left,
@@ -76,11 +121,15 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({ device, image, dropShadow = 0
         }}
       >
         {image ? (
-          <img src={image} alt="Mockup Content" className="w-full h-full object-cover" />
+          <img 
+            src={image} 
+            alt="Mockup content" 
+            className="w-full h-full object-fill" // Changed from object-cover to object-fill
+          />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-muted/20 p-4 text-center">
-            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-50">
-              No Screenshot Uploaded
+          <div className="w-full h-full flex items-center justify-center bg-muted/20">
+            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-40">
+              Upload Screenshot
             </span>
           </div>
         )}
