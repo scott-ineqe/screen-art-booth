@@ -7,29 +7,19 @@ import { Slider } from "@/components/ui/slider";
 import DeviceFrame, { type DeviceType, deviceConfigs } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon } from "lucide-react";
 
-// Base pixel dimensions of each device frame component
-const deviceFrameSizes: Record<DeviceType, { w: number; h: number }> = {
-  iphone: { w: 310, h: 640 },
-  ipad: { w: 548, h: 726 },
-  macbook: { w: 700, h: 470 },
-};
+// Fixed 16:9 canvas
+const CANVAS_WIDTH = 1920;
+const CANVAS_HEIGHT = 1080;
 
 const Index = () => {
   const [device, setDevice] = useState<DeviceType>("iphone");
   const [image, setImage] = useState<string | null>(null);
-  const [borderSize, setBorderSize] = useState(80);
   const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
-  const [deviceScale, setDeviceScale] = useState(100);
+  const [deviceScale, setDeviceScale] = useState(50);
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Canvas auto-sizes to device + padding
-  const scaleFactor = deviceScale / 100;
-  const baseSize = deviceFrameSizes[device];
-  const canvasWidth = Math.round(baseSize.w * scaleFactor + borderSize * 2);
-  const canvasHeight = Math.round(baseSize.h * scaleFactor + borderSize * 2);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
