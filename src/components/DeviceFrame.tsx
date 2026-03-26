@@ -20,19 +20,40 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "iPhone 17",
     frameUrl: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
-    screenArea: { top: "1.8%", left: "4.0%", width: "92%", height: "96.4%", borderRadius: "44px" }
+    // Expanded slightly to bleed under the bezel
+    screenArea: { 
+      top: "3.9%", 
+      left: "4.1%", 
+      width: "93.9%", 
+      height: "92.2%", 
+      borderRadius: "44px" 
+    }
   },
   "ipad-air": {
     label: "iPad Air",
     frameUrl: "/frames/ipad-air.png",
     aspectRatio: 2732 / 2048,
-    screenArea: { top: "3.2%", left: "3.2%", width: "93.6%", height: "93.6%", borderRadius: "14px" }
+    // Expanded slightly to bleed under the bezel
+    screenArea: { 
+      top: "7.7%", 
+      left: "4.3%", 
+      width: "91.5%", 
+      height: "84.7%", 
+      borderRadius: "9.7px" 
+    }
   },
   "macbook-pro-16": {
     label: "MacBook Pro 16",
     frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { top: "4.0%", left: "8.5%", width: "83.0%", height: "85.5%", borderRadius: "4px" }
+    // Expanded slightly to bleed under the bezel (bottom margin kept larger for the physical hinge)
+    screenArea: { 
+      top: "6.3%", 
+      left: "9.3%", 
+      width: "81.4%", 
+      height: "81.48%", 
+      borderRadius: "1px" 
+    }
   }
 };
 
