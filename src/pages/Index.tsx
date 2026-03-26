@@ -210,7 +210,7 @@ const Index = () => {
                   className="flex items-center justify-center"
                   style={{ transform: `scale(${scaleFactor})`, transformOrigin: "center" }}
                 >
-                  <DeviceFrame device={device} image={image} />
+                  <DeviceFrame device={device} image={image} dropShadow={dropShadow} innerGlow={innerGlow} />
                 </div>
               </div>
             </div>
