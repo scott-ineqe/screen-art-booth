@@ -53,6 +53,10 @@ const Index = () => {
   const [innerGlow, setInnerGlow] = useState(0);
   const [innerGlowAngle, setInnerGlowAngle] = useState(0); 
 
+  // --- Controlled Accordion State ---
+  // "animation" is intentionally left out initially so it starts closed
+  const [openAccordions, setOpenAccordions] = useState<string[]>(["asset", "frame", "lighting", "canvas"]);
+
   // --- Animation State ---
   const [animEnabled, setAnimEnabled] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -362,13 +366,22 @@ const Index = () => {
         {/* Sidebar */}
         <aside className="w-full lg:w-[360px] border-r bg-card p-4 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
           
-          <Accordion type="multiple" defaultValue={["asset", "frame", "lighting", "animation", "canvas"]} className="w-full">
+          <Accordion 
+            type="multiple" 
+            value={openAccordions} 
+            onValueChange={(val) => {
+              setOpenAccordions(val);
+              setAnimEnabled(val.includes("animation"));
+            }} 
+            className="w-full"
+          >
             
             {/* Manage Asset */}
             <AccordionItem value="asset" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
                 Manage Asset
               </AccordionTrigger>
+              {/* -mx-2 px-2 expands bounds so selects/sliders aren't clipped */}
               <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                 <Button variant="outline" className="w-full h-12 shadow-sm" onClick={() => fileInputRef.current?.click()}>
@@ -497,106 +510,110 @@ const Index = () => {
                   Animation Options
                 </AccordionTrigger>
                 <div className="pb-4">
-                  <Switch checked={animEnabled} onCheckedChange={setAnimEnabled} />
+                  <Switch 
+                    checked={animEnabled} 
+                    onCheckedChange={(checked) => {
+                      setAnimEnabled(checked);
+                      setOpenAccordions(prev => checked ? [...prev, "animation"] : prev.filter(id => id !== "animation"));
+                    }} 
+                  />
                 </div>
               </div>
               
               <AccordionContent className="pb-4 pt-2 px-2 -mx-2 overflow-visible">
-                {animEnabled && (
-                  <div className="space-y-6 pt-4 animate-in fade-in zoom-in-95 duration-200">
-                    
-                    {/* Scale */}
-                    <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
-                      <Label className="text-xs font-bold border-b pb-1 w-full flex">Scale</Label>
-                      <div className="space-y-3">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start Scale</Label><span className="text-[10px] font-mono">{animStartScale}%</span></div>
-                        <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} disabled={isPlaying} />
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End Scale</Label><span className="text-[10px] font-mono">{animEndScale}%</span></div>
-                        <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} disabled={isPlaying} />
-                      </div>
+                <div className="space-y-6 pt-4">
+                  
+                  {/* Scale */}
+                  <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
+                    <Label className="text-xs font-bold border-b pb-1 w-full flex">Scale</Label>
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start Scale</Label><span className="text-[10px] font-mono">{animStartScale}%</span></div>
+                      <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} disabled={isPlaying} />
                     </div>
-
-                    {/* Position */}
-                    <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
-                      <div className="flex items-center justify-between border-b pb-1 w-full">
-                        <Label className="text-xs font-bold">Position Offset</Label>
-                        <Button variant="ghost" size="sm" className="h-5 px-2 text-[10px] bg-muted border shadow-sm" onClick={centerPositions} disabled={isPlaying}>
-                          <Crosshair className="w-3 h-3 mr-1"/> Center
-                        </Button>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start X</Label><span className="text-[10px] font-mono">{animStartX}px</span></div>
-                        <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} disabled={isPlaying} />
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start Y</Label><span className="text-[10px] font-mono">{animStartY}px</span></div>
-                        <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} disabled={isPlaying} />
-                      </div>
-                      <div className="space-y-3 mt-4 pt-4 border-t border-dashed">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End X</Label><span className="text-[10px] font-mono">{animEndX}px</span></div>
-                        <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} disabled={isPlaying} />
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End Y</Label><span className="text-[10px] font-mono">{animEndY}px</span></div>
-                        <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} disabled={isPlaying} />
-                      </div>
-                    </div>
-
-                    {/* Rotation */}
-                    <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
-                      <Label className="text-xs font-bold border-b pb-1 w-full flex">Rotation</Label>
-                      <div className="space-y-3">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start Angle</Label><span className="text-[10px] font-mono">{animStartRot}°</span></div>
-                        <Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={0} max={360} disabled={isPlaying} />
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End Angle</Label><span className="text-[10px] font-mono">{animEndRot}°</span></div>
-                        <Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={0} max={360} disabled={isPlaying} />
-                      </div>
-                      <div className="flex items-center justify-between pt-2">
-                        <Label className="text-[10px] text-muted-foreground">Direction</Label>
-                        <div className="flex gap-1 bg-muted p-1 rounded-md border">
-                          <Button variant={animRotDirection === "cw" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] px-2 shadow-none" onClick={() => setAnimRotDirection("cw")} disabled={isPlaying}>CW</Button>
-                          <Button variant={animRotDirection === "ccw" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] px-2 shadow-none" onClick={() => setAnimRotDirection("ccw")} disabled={isPlaying}>CCW</Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Timing */}
-                    <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
-                      <div className="space-y-3">
-                        <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Duration</Label><span className="text-[10px] font-mono">{animDuration}s</span></div>
-                        <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.5} disabled={isPlaying} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] text-muted-foreground">Easing</Label>
-                        <Select value={animEasing} onValueChange={setAnimEasing} disabled={isPlaying}>
-                          <SelectTrigger className="h-8 text-xs bg-muted">
-                            <SelectValue placeholder="Select easing..." />
-                          </SelectTrigger>
-                          <SelectContent position="popper">
-                            <SelectItem value="linear">Linear (Constant speed)</SelectItem>
-                            <SelectItem value="ease-in">Ease In (Starts slow)</SelectItem>
-                            <SelectItem value="ease-out">Ease Out (Ends slow)</SelectItem>
-                            <SelectItem value="ease-in-out">Ease In Out (Smooth ends)</SelectItem>
-                            <SelectItem value="cubic-bezier(0.68, -0.55, 0.265, 1.55)">Bouncy</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button onClick={handlePlayAnimation} disabled={isPlaying} className="flex-1 font-semibold">
-                        <Play className="w-4 h-4 mr-2 fill-current" /> Play Preview
-                      </Button>
-                      <Button variant="outline" onClick={handleResetAnimation} disabled={!isPlaying} className="px-3" title="Reset Animation">
-                        <RotateCcw className="w-4 h-4" />
-                      </Button>
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End Scale</Label><span className="text-[10px] font-mono">{animEndScale}%</span></div>
+                      <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} disabled={isPlaying} />
                     </div>
                   </div>
-                )}
+
+                  {/* Position */}
+                  <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
+                    <div className="flex items-center justify-between border-b pb-1 w-full">
+                      <Label className="text-xs font-bold">Position Offset</Label>
+                      <Button variant="ghost" size="sm" className="h-5 px-2 text-[10px] bg-muted border shadow-sm" onClick={centerPositions} disabled={isPlaying}>
+                        <Crosshair className="w-3 h-3 mr-1"/> Center
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start X</Label><span className="text-[10px] font-mono">{animStartX}px</span></div>
+                      <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} disabled={isPlaying} />
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start Y</Label><span className="text-[10px] font-mono">{animStartY}px</span></div>
+                      <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} disabled={isPlaying} />
+                    </div>
+                    <div className="space-y-3 mt-4 pt-4 border-t border-dashed">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End X</Label><span className="text-[10px] font-mono">{animEndX}px</span></div>
+                      <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} disabled={isPlaying} />
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End Y</Label><span className="text-[10px] font-mono">{animEndY}px</span></div>
+                      <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} disabled={isPlaying} />
+                    </div>
+                  </div>
+
+                  {/* Rotation */}
+                  <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
+                    <Label className="text-xs font-bold border-b pb-1 w-full flex">Rotation</Label>
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start Angle</Label><span className="text-[10px] font-mono">{animStartRot}°</span></div>
+                      <Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={0} max={360} disabled={isPlaying} />
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End Angle</Label><span className="text-[10px] font-mono">{animEndRot}°</span></div>
+                      <Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={0} max={360} disabled={isPlaying} />
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                      <Label className="text-[10px] text-muted-foreground">Direction</Label>
+                      <div className="flex gap-1 bg-muted p-1 rounded-md border">
+                        <Button variant={animRotDirection === "cw" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] px-2 shadow-none" onClick={() => setAnimRotDirection("cw")} disabled={isPlaying}>CW</Button>
+                        <Button variant={animRotDirection === "ccw" ? "default" : "ghost"} size="sm" className="h-6 text-[10px] px-2 shadow-none" onClick={() => setAnimRotDirection("ccw")} disabled={isPlaying}>CCW</Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Timing */}
+                  <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Duration</Label><span className="text-[10px] font-mono">{animDuration}s</span></div>
+                      <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.5} disabled={isPlaying} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] text-muted-foreground">Easing</Label>
+                      <Select value={animEasing} onValueChange={setAnimEasing} disabled={isPlaying}>
+                        <SelectTrigger className="h-8 text-xs bg-muted">
+                          <SelectValue placeholder="Select easing..." />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          <SelectItem value="linear">Linear (Constant speed)</SelectItem>
+                          <SelectItem value="ease-in">Ease In (Starts slow)</SelectItem>
+                          <SelectItem value="ease-out">Ease Out (Ends slow)</SelectItem>
+                          <SelectItem value="ease-in-out">Ease In Out (Smooth ends)</SelectItem>
+                          <SelectItem value="cubic-bezier(0.68, -0.55, 0.265, 1.55)">Bouncy</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handlePlayAnimation} disabled={isPlaying} className="flex-1 font-semibold">
+                      <Play className="w-4 h-4 mr-2 fill-current" /> Play Preview
+                    </Button>
+                    <Button variant="outline" onClick={handleResetAnimation} disabled={!isPlaying} className="px-3" title="Reset Animation">
+                      <RotateCcw className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               </AccordionContent>
             </AccordionItem>
 
