@@ -33,7 +33,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "MacBook Pro 16",
     frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { top: "4.8%", left: "9.2%", width: "81.6%", height: "84.4%", borderRadius: "4px" }
+    screenArea: { top: "4.8%", left: "8%", width: "81.6%", height: "84.4%", borderRadius: "4px" }
   }
 };
 
