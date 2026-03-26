@@ -22,10 +22,10 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     aspectRatio: 1179 / 2556,
     // Expanded slightly to bleed under the bezel
     screenArea: { 
-      top: "15%", 
+      top: "2%", 
       left: "2%", 
       width: "95%", 
-      height: "95%", 
+      height: "100%", 
       borderRadius: "44px" 
     }
   },
