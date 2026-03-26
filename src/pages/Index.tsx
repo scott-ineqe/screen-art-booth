@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { toPng, toJpeg, toSvg } from "html-to-image";
+import { toPng, toJpeg, toSvg, toCanvas } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -18,27 +18,28 @@ import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Pla
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
 
-type ExportFormat = "png" | "jpeg" | "svg";
+type ExportFormat = "png" | "jpeg" | "svg" | "mp4";
 
 const Index = () => {
   const [device, setDevice] = useState<DeviceType>("iphone17");
   const [image, setImage] = useState<string | null>(null);
   const [deviceScale, setDeviceScale] = useState(60);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0); // Tracks frame rendering progress
   const [previewScale, setPreviewScale] = useState(0.5);
   
   // Lighting & Shadow State
   const [dropShadow, setDropShadow] = useState(30);
-  const [dropShadowAngle, setDropShadowAngle] = useState(180); // 180 = Straight down
+  const [dropShadowAngle, setDropShadowAngle] = useState(180); 
   const [dropShadowAllSides, setDropShadowAllSides] = useState(false);
   const [innerGlow, setInnerGlow] = useState(0);
-  const [innerGlowAngle, setInnerGlowAngle] = useState(0); // 0 = Top-down lighting
+  const [innerGlowAngle, setInnerGlowAngle] = useState(0); 
 
   // Animation State
   const [animEnabled, setAnimEnabled] = useState(false);
   const [animStartScale, setAnimStartScale] = useState(40);
   const [animEndScale, setAnimEndScale] = useState(90);
-  const [animDuration, setAnimDuration] = useState(2); // In seconds
+  const [animDuration, setAnimDuration] = useState(2); 
   const [animEasing, setAnimEasing] = useState("ease-in-out");
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -54,6 +55,7 @@ const Index = () => {
   const [exportQuality, setExportQuality] = useState<string>("2");
   
   const canvasRef = useRef<HTMLDivElement>(null);
+  const animTargetRef = useRef<HTMLDivElement>(null); // Ref for capturing animation transformations
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mainAreaRef = useRef<HTMLElement>(null);
 
@@ -79,26 +81,19 @@ const Index = () => {
     reader.readAsDataURL(file);
   };
 
-  // Drag and Drop Handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.dataTransfer.types.includes('Files')) {
-      setIsDragging(true);
-    }
+    e.preventDefault(); e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) setIsDragging(true);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setIsDragging(false);
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setIsDragging(false);
-
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) {
       const reader = new FileReader();
@@ -107,55 +102,154 @@ const Index = () => {
     }
   }, []);
 
-  // Animation Handlers
   const handlePlayAnimation = () => {
     setIsPlaying(false);
-    // Tiny delay to ensure DOM resets to start scale before triggering transition
-    setTimeout(() => {
-      setIsPlaying(true);
-    }, 50);
+    setTimeout(() => setIsPlaying(true), 50);
   };
 
-  const handleResetAnimation = () => {
-    setIsPlaying(false);
-  };
+  const handleResetAnimation = () => setIsPlaying(false);
 
   const handleExport = useCallback(async () => {
     if (!canvasRef.current) return;
     setExporting(true);
+    setExportProgress(0);
+    
     try {
       const pixelRatio = parseFloat(exportQuality);
       const effectiveBgColor = transparent && exportFormat === "jpeg" 
         ? "#ffffff" 
         : (transparent ? "rgba(0,0,0,0)" : bgColor);
 
-      const exportOptions = { 
-        pixelRatio, 
-        cacheBust: true,
-        backgroundColor: effectiveBgColor,
-      };
+      // --- VIDEO EXPORT HANDLER ---
+      if (exportFormat === "mp4") {
+        if (!animTargetRef.current) throw new Error("Missing animation target node.");
+        
+        const fps = 30;
+        const duration = animEnabled ? animDuration : 1; 
+        const totalFrames = duration * fps;
+        const frames: HTMLCanvasElement[] = [];
+        
+        const el = canvasRef.current;
+        const targetNode = animTargetRef.current;
+        
+        // Save user's current styling to restore after export
+        const originalTransition = targetNode.style.transitionProperty;
+        const originalTransform = targetNode.style.transform;
+        
+        // Turn off real CSS transitions to manually render frames
+        targetNode.style.transitionProperty = 'none';
+        
+        // 1. OFFLINE RENDERER (Takes ~2-3 seconds)
+        for (let i = 0; i <= totalFrames; i++) {
+            const t = i / totalFrames;
+            
+            // Calculate easing mathematically
+            let easeT = t;
+            if (animEasing === 'ease-in-out') easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            else if (animEasing === 'ease-in') easeT = t * t;
+            else if (animEasing === 'ease-out') easeT = t * (2 - t);
+            
+            const startS = animEnabled ? animStartScale : deviceScale;
+            const endS = animEnabled ? animEndScale : deviceScale;
+            const currentScale = startS + (endS - startS) * easeT;
+            
+            targetNode.style.transform = `scale(${currentScale / 100})`;
+            
+            // Brief pause allows the DOM layout to catch up
+            await new Promise(r => setTimeout(r, 5));
+            
+            const frameCanvas = await toCanvas(el, { 
+                pixelRatio: 1, // Video frames must be 1x resolution to avoid canvas memory overflow
+                cacheBust: true,
+                backgroundColor: effectiveBgColor,
+            });
+            frames.push(frameCanvas);
+            setExportProgress(Math.round((i / totalFrames) * 50)); 
+        }
+        
+        // Restore styles
+        targetNode.style.transitionProperty = originalTransition;
+        targetNode.style.transform = originalTransform;
+        
+        // 2. VIDEO ENCODING
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = CANVAS_WIDTH;
+        outCanvas.height = CANVAS_HEIGHT;
+        const ctx = outCanvas.getContext('2d');
+        if (!ctx) throw new Error("Could not initialize video context.");
+        
+        const stream = outCanvas.captureStream(fps);
+        
+        // Check browser capabilities (Safari natively supports mp4, Chrome/Firefox fall back to webm)
+        let mimeType = 'video/webm';
+        let ext = 'webm';
+        if (MediaRecorder.isTypeSupported('video/mp4')) {
+            mimeType = 'video/mp4';
+            ext = 'mp4';
+        }
+        
+        const recorder = new MediaRecorder(stream, { mimeType });
+        const chunks: BlobPart[] = [];
+        recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data) };
+        
+        const recorderPromise = new Promise<Blob>((resolve) => {
+            recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+        });
+        
+        recorder.start();
+        
+        // Play frames through the recorder at correct FPS
+        let frameIdx = 0;
+        const interval = setInterval(() => {
+            ctx.clearRect(0, 0, outCanvas.width, outCanvas.height);
+            ctx.drawImage(frames[frameIdx], 0, 0);
+            frameIdx++;
+            setExportProgress(50 + Math.round((frameIdx / frames.length) * 50));
 
-      let dataUrl;
-      if (exportFormat === "jpeg") {
-        dataUrl = await toJpeg(canvasRef.current, { ...exportOptions, quality: 0.95 });
-      } else if (exportFormat === "svg") {
-        dataUrl = await toSvg(canvasRef.current, exportOptions);
+            if (frameIdx >= frames.length) {
+                clearInterval(interval);
+                recorder.stop();
+            }
+        }, 1000 / fps); 
+        
+        const blob = await recorderPromise;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `mockup-video.${ext}`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        
       } else {
-        dataUrl = await toPng(canvasRef.current, exportOptions);
-      }
+        // --- STANDARD IMAGE EXPORT ---
+        const exportOptions = { 
+          pixelRatio, 
+          cacheBust: true,
+          backgroundColor: effectiveBgColor,
+        };
 
-      const link = document.createElement("a");
-      link.download = `mockup-${device}-${exportQuality}x.${exportFormat}`;
-      link.href = dataUrl;
-      link.click();
+        let dataUrl;
+        if (exportFormat === "jpeg") {
+          dataUrl = await toJpeg(canvasRef.current, { ...exportOptions, quality: 0.95 });
+        } else if (exportFormat === "svg") {
+          dataUrl = await toSvg(canvasRef.current, exportOptions);
+        } else {
+          dataUrl = await toPng(canvasRef.current, exportOptions);
+        }
+
+        const link = document.createElement("a");
+        link.download = `mockup-${device}-${exportQuality}x.${exportFormat}`;
+        link.href = dataUrl;
+        link.click();
+      }
     } catch (err) {
       console.error("Export failed", err);
     } finally {
       setExporting(false);
+      setExportProgress(0);
     }
-  }, [device, transparent, bgColor, exportFormat, exportQuality]);
+  }, [device, transparent, bgColor, exportFormat, exportQuality, animEnabled, animStartScale, animEndScale, animDuration, animEasing, deviceScale]);
 
-  // Determine the current scale based on animation state vs manual state
   const activeScale = animEnabled 
     ? (isPlaying ? animEndScale : animStartScale) 
     : deviceScale;
@@ -173,7 +267,6 @@ const Index = () => {
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative">
         
-        {/* Sidebar */}
         <aside className="w-full lg:w-[360px] border-r bg-card p-6 space-y-8 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
           
           <div className="space-y-4">
@@ -194,10 +287,11 @@ const Index = () => {
                   <SelectItem value="png">PNG</SelectItem>
                   <SelectItem value="jpeg">JPEG</SelectItem>
                   <SelectItem value="svg">SVG</SelectItem>
+                  <SelectItem value="mp4">Video (WebM/MP4)</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select value={exportQuality} onValueChange={setExportQuality}>
+              <Select value={exportQuality} onValueChange={setExportQuality} disabled={exportFormat === 'mp4' || exporting}>
                 <SelectTrigger className="h-10 text-xs">
                   <SelectValue placeholder="Quality" />
                 </SelectTrigger>
@@ -215,7 +309,10 @@ const Index = () => {
               className="w-full h-12 shadow-md transition-all active:scale-95 font-semibold"
             >
               <Download className="mr-2 w-4 h-4" /> 
-              {exporting ? "Preparing..." : `Export ${exportFormat.toUpperCase()}`}
+              {exporting 
+                ? (exportFormat === 'mp4' ? `Rendering Video (${exportProgress}%)` : "Preparing Export...") 
+                : `Export ${exportFormat.toUpperCase()}`
+              }
             </Button>
           </div>
 
@@ -246,7 +343,6 @@ const Index = () => {
           <div className="space-y-6 pt-4 border-t border-border">
             <Label className="text-[10px] font-black uppercase text-muted-foreground">3. Lighting & Shadows</Label>
             
-            {/* Drop Shadow Controls */}
             <div className="space-y-4 p-4 bg-muted/30 rounded-xl border">
               <div className="space-y-3">
                 <div className="flex justify-between"><Label>Drop Shadow</Label><span className="text-xs font-mono">{dropShadow}%</span></div>
@@ -270,7 +366,6 @@ const Index = () => {
               )}
             </div>
 
-            {/* Inner Glow Controls */}
             <div className="space-y-4 p-4 bg-muted/30 rounded-xl border">
               <div className="space-y-3">
                 <div className="flex justify-between"><Label>Screen Inner Glow</Label><span className="text-xs font-mono">{innerGlow}%</span></div>
@@ -286,7 +381,6 @@ const Index = () => {
             </div>
           </div>
 
-          {/* New Animation Section */}
           <div className="space-y-6 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
               <Label className="text-[10px] font-black uppercase text-muted-foreground">4. Animation</Label>
@@ -324,20 +418,10 @@ const Index = () => {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <Button 
-                    onClick={handlePlayAnimation} 
-                    disabled={isPlaying}
-                    className="flex-1 font-semibold"
-                  >
+                  <Button onClick={handlePlayAnimation} disabled={isPlaying} className="flex-1 font-semibold">
                     <Play className="w-4 h-4 mr-2 fill-current" /> Play
                   </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={handleResetAnimation} 
-                    disabled={!isPlaying}
-                    className="px-3"
-                    title="Reset Animation"
-                  >
+                  <Button variant="outline" onClick={handleResetAnimation} disabled={!isPlaying} className="px-3" title="Reset Animation">
                     <RotateCcw className="w-4 h-4" />
                   </Button>
                 </div>
@@ -359,25 +443,13 @@ const Index = () => {
               {!transparent && (
                 <div className="flex items-center gap-3">
                   <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
-                    <input
-                      type="color"
-                      value={bgColor}
-                      onChange={(e) => setBgColor(e.target.value)}
-                      className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer"
-                    />
+                    <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
                   </div>
-                  <Input
-                    value={bgColor}
-                    onChange={(e) => setBgColor(e.target.value)}
-                    placeholder="#FFFFFF"
-                    className="font-mono uppercase h-10"
-                    maxLength={7}
-                  />
+                  <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
                 </div>
               )}
             </div>
 
-            {/* Static scale slider hides when animation is enabled */}
             {!animEnabled && (
               <div className="space-y-3 pt-2">
                 <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
@@ -387,7 +459,6 @@ const Index = () => {
           </div>
         </aside>
 
-        {/* Main Canvas Area */}
         <main 
           ref={mainAreaRef}
           className="flex-1 relative flex items-center justify-center bg-muted/20 overflow-hidden"
@@ -395,13 +466,10 @@ const Index = () => {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {/* Drag Overlay */}
           {isDragging && (
             <div className="absolute inset-0 z-50 bg-primary/5 border-4 border-primary/50 flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-200">
               <div className="bg-background/90 p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in-95 pointer-events-none">
-                <div className="bg-primary/10 p-4 rounded-full">
-                  <ImagePlus className="w-12 h-12 text-primary" />
-                </div>
+                <div className="bg-primary/10 p-4 rounded-full"><ImagePlus className="w-12 h-12 text-primary" /></div>
                 <div className="text-center">
                   <p className="text-xl font-bold tracking-tight">Drop Image Here</p>
                   <p className="text-sm text-muted-foreground mt-1">Updates the device screen instantly</p>
@@ -412,10 +480,7 @@ const Index = () => {
 
           <div 
             className="absolute inset-0 pointer-events-none opacity-50"
-            style={{
-              backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)",
-              backgroundSize: "24px 24px"
-            }}
+            style={{ backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)", backgroundSize: "24px 24px" }}
           />
 
           <div
@@ -425,43 +490,30 @@ const Index = () => {
               height: CANVAS_HEIGHT,
               transform: `scale(${previewScale})`,
               backgroundColor: transparent ? 'transparent' : bgColor,
-              ...(transparent && {
-                backgroundImage: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%)",
-                backgroundSize: "40px 40px",
-              })
+              ...(transparent && { backgroundImage: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%)", backgroundSize: "40px 40px" })
             }}
           >
             <div 
               ref={canvasRef}
               className="w-full h-full flex items-center justify-center relative overflow-hidden"
-              style={{
-                backgroundColor: transparent ? "transparent" : bgColor,
-              }}
+              style={{ backgroundColor: transparent ? "transparent" : bgColor }}
             >
               <div 
+                ref={animTargetRef}
                 style={{ 
                   transform: `scale(${activeScale / 100})`,
-                  // Apply dynamic CSS transition properties specifically for the scale animation
                   transitionProperty: 'transform',
                   transitionDuration: animEnabled && isPlaying ? `${animDuration}s` : '0s',
                   transitionTimingFunction: animEasing,
                 }}
               >
                 <DeviceFrame 
-                  device={device} 
-                  image={image} 
-                  dropShadow={dropShadow} 
-                  dropShadowAngle={dropShadowAngle}
-                  dropShadowAllSides={dropShadowAllSides}
-                  innerGlow={innerGlow}
-                  innerGlowAngle={innerGlowAngle}
-                  onUploadClick={() => fileInputRef.current?.click()} 
+                  device={device} image={image} dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} 
                 />
               </div>
             </div>
           </div>
         </main>
-
       </div>
     </div>
   );
