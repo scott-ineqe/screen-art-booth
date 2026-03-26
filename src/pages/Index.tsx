@@ -428,7 +428,7 @@ const Index = () => {
           <h1 className="text-xl font-bold tracking-tight">Screen Booth</h1>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold">
-          <span>&copy; {new Date().getFullYear()} Screen Booth</span>
+          <span>&copy; {new Date().getFullYear()}</span>
           <img 
             src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f32d.png" 
             alt="Hotdog" 
