@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
-import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus } from "lucide-react";
+import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Play, RotateCcw } from "lucide-react";
 
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
@@ -33,6 +33,14 @@ const Index = () => {
   const [dropShadowAllSides, setDropShadowAllSides] = useState(false);
   const [innerGlow, setInnerGlow] = useState(0);
   const [innerGlowAngle, setInnerGlowAngle] = useState(0); // 0 = Top-down lighting
+
+  // Animation State
+  const [animEnabled, setAnimEnabled] = useState(false);
+  const [animStartScale, setAnimStartScale] = useState(40);
+  const [animEndScale, setAnimEndScale] = useState(90);
+  const [animDuration, setAnimDuration] = useState(2); // In seconds
+  const [animEasing, setAnimEasing] = useState("ease-in-out");
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Drag and Drop state
   const [isDragging, setIsDragging] = useState(false);
@@ -99,6 +107,19 @@ const Index = () => {
     }
   }, []);
 
+  // Animation Handlers
+  const handlePlayAnimation = () => {
+    setIsPlaying(false);
+    // Tiny delay to ensure DOM resets to start scale before triggering transition
+    setTimeout(() => {
+      setIsPlaying(true);
+    }, 50);
+  };
+
+  const handleResetAnimation = () => {
+    setIsPlaying(false);
+  };
+
   const handleExport = useCallback(async () => {
     if (!canvasRef.current) return;
     setExporting(true);
@@ -133,6 +154,11 @@ const Index = () => {
       setExporting(false);
     }
   }, [device, transparent, bgColor, exportFormat, exportQuality]);
+
+  // Determine the current scale based on animation state vs manual state
+  const activeScale = animEnabled 
+    ? (isPlaying ? animEndScale : animStartScale) 
+    : deviceScale;
 
   return (
     <div className="h-screen w-full bg-background flex flex-col overflow-hidden">
@@ -260,8 +286,67 @@ const Index = () => {
             </div>
           </div>
 
+          {/* New Animation Section */}
+          <div className="space-y-6 pt-4 border-t border-border">
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-black uppercase text-muted-foreground">4. Animation</Label>
+              <Switch checked={animEnabled} onCheckedChange={setAnimEnabled} />
+            </div>
+
+            {animEnabled && (
+              <div className="space-y-4 p-4 bg-muted/30 rounded-xl border animate-in fade-in zoom-in-95 duration-200">
+                <div className="space-y-3">
+                  <div className="flex justify-between"><Label>Start Scale</Label><span className="text-xs font-mono">{animStartScale}%</span></div>
+                  <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} disabled={isPlaying} />
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between"><Label>End Scale</Label><span className="text-xs font-mono">{animEndScale}%</span></div>
+                  <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} disabled={isPlaying} />
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between"><Label>Duration (seconds)</Label><span className="text-xs font-mono">{animDuration}s</span></div>
+                  <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.5} disabled={isPlaying} />
+                </div>
+                <div className="space-y-2 pt-2">
+                  <Label className="text-xs">Easing</Label>
+                  <Select value={animEasing} onValueChange={setAnimEasing} disabled={isPlaying}>
+                    <SelectTrigger className="h-10 text-xs bg-background">
+                      <SelectValue placeholder="Select easing..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="linear">Linear (Constant speed)</SelectItem>
+                      <SelectItem value="ease-in">Ease In (Starts slow)</SelectItem>
+                      <SelectItem value="ease-out">Ease Out (Ends slow)</SelectItem>
+                      <SelectItem value="ease-in-out">Ease In Out (Smooth ends)</SelectItem>
+                      <SelectItem value="cubic-bezier(0.68, -0.55, 0.265, 1.55)">Bouncy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    onClick={handlePlayAnimation} 
+                    disabled={isPlaying}
+                    className="flex-1 font-semibold"
+                  >
+                    <Play className="w-4 h-4 mr-2 fill-current" /> Play
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={handleResetAnimation} 
+                    disabled={!isPlaying}
+                    className="px-3"
+                    title="Reset Animation"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-6 pt-4 border-t border-border pb-8">
-            <Label className="text-[10px] font-black uppercase text-muted-foreground">4. Canvas & Background</Label>
+            <Label className="text-[10px] font-black uppercase text-muted-foreground">5. Canvas & Background</Label>
             
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -292,10 +377,13 @@ const Index = () => {
               )}
             </div>
 
-            <div className="space-y-3 pt-2">
-              <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
-              <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
-            </div>
+            {/* Static scale slider hides when animation is enabled */}
+            {!animEnabled && (
+              <div className="space-y-3 pt-2">
+                <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
+                <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
+              </div>
+            )}
           </div>
         </aside>
 
@@ -350,7 +438,15 @@ const Index = () => {
                 backgroundColor: transparent ? "transparent" : bgColor,
               }}
             >
-              <div style={{ transform: `scale(${deviceScale / 100})` }}>
+              <div 
+                style={{ 
+                  transform: `scale(${activeScale / 100})`,
+                  // Apply dynamic CSS transition properties specifically for the scale animation
+                  transitionProperty: 'transform',
+                  transitionDuration: animEnabled && isPlaying ? `${animDuration}s` : '0s',
+                  transitionTimingFunction: animEasing,
+                }}
+              >
                 <DeviceFrame 
                   device={device} 
                   image={image} 
