@@ -18,6 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Play, RotateCcw, Crosshair } from "lucide-react";
 
@@ -75,8 +76,16 @@ const Index = () => {
   const [animEndY, setAnimEndY] = useState(0);
 
   const [isDragging, setIsDragging] = useState(false);
-  const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
+
+  // --- Background Options State ---
+  const [bgType, setBgType] = useState<"solid" | "gradient" | "image">("solid");
+  const [bgColor, setBgColor] = useState("#ffffff");
+  const [bgGradientType, setBgGradientType] = useState<"linear" | "radial">("linear");
+  const [bgGradientColor1, setBgGradientColor1] = useState("#e2e8f0");
+  const [bgGradientColor2, setBgGradientColor2] = useState("#ffffff");
+  const [bgGradientAngle, setBgGradientAngle] = useState(135);
+  const [bgImage, setBgImage] = useState<string | null>(null);
 
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
   const [exportQuality, setExportQuality] = useState<string>("2");
@@ -84,6 +93,7 @@ const Index = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const animTargetRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgFileInputRef = useRef<HTMLInputElement>(null);
   const mainAreaRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -105,6 +115,14 @@ const Index = () => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => setImage(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleBgImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setBgImage(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -150,6 +168,27 @@ const Index = () => {
     return end;
   };
 
+  const getCanvasBackgroundStyles = (): React.CSSProperties => {
+    if (transparent) return { backgroundColor: "transparent" };
+    if (bgType === "solid") return { backgroundColor: bgColor };
+    if (bgType === "gradient") {
+      if (bgGradientType === "linear") {
+        return { backgroundImage: `linear-gradient(${bgGradientAngle}deg, ${bgGradientColor1}, ${bgGradientColor2})` };
+      } else {
+        return { backgroundImage: `radial-gradient(circle, ${bgGradientColor1}, ${bgGradientColor2})` };
+      }
+    }
+    if (bgType === "image" && bgImage) {
+      return { 
+        backgroundImage: `url(${bgImage})`, 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center',
+        backgroundColor: '#ffffff' // safety fallback behind image
+      };
+    }
+    return { backgroundColor: bgColor };
+  };
+
   const handleExport = useCallback(async () => {
     if (!canvasRef.current) return;
     setExporting(true);
@@ -158,18 +197,22 @@ const Index = () => {
     
     try {
       const pixelRatio = parseFloat(exportQuality);
-      const effectiveBgColor = transparent && exportFormat === "jpeg" 
-        ? "#ffffff" 
-        : (transparent ? "rgba(0,0,0,0)" : bgColor);
+      
+      // Safely handle effective background color for standard JPEG formats preventing black backgrounds
+      let effectiveBgColor = "rgba(0,0,0,0)";
+      if (exportFormat === "jpeg") {
+        effectiveBgColor = (transparent || bgType !== "solid") ? "#ffffff" : bgColor;
+      } else {
+        effectiveBgColor = transparent ? "rgba(0,0,0,0)" : (bgType === "solid" ? bgColor : "rgba(0,0,0,0)");
+      }
 
-      // Base options locking the width/height to perfectly crop the canvas
       const baseExportOptions = {
         cacheBust: true,
         backgroundColor: effectiveBgColor,
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT,
         style: {
-          transform: 'none', // Nullify any rogue inheritance from DOM scaling
+          transform: 'none', 
         }
       };
 
@@ -224,7 +267,6 @@ const Index = () => {
             const frameCanvas = await toCanvas(el, { 
                 ...baseExportOptions,
                 pixelRatio: resRatio,
-                // canvasWidth/Height explicitly locks the returned HTMLCanvasElement resolution
                 canvasWidth: CANVAS_WIDTH * resRatio,
                 canvasHeight: CANVAS_HEIGHT * resRatio,
             });
@@ -274,7 +316,6 @@ const Index = () => {
         
         setExportStatus("Encoding Video...");
         const outCanvas = document.createElement('canvas');
-        // Match the exact dimensions rendered to prevent layout bleeding
         outCanvas.width = frames[0].width;
         outCanvas.height = frames[0].height;
         const ctx = outCanvas.getContext('2d');
@@ -284,14 +325,13 @@ const Index = () => {
         let mimeType = 'video/webm';
         let ext = 'webm';
         
-        // Force H.264 (avc1) codecs for QuickTime compatibility
         const quicktimeCompatibleCodecs = [
             'video/mp4;codecs="avc1.42E01E, mp4a.40.2"',
             'video/mp4;codecs="avc1.42E01E"',
             'video/mp4;codecs="avc1.4D401E"',
-            'video/mp4;codecs="hvc1"', // HEVC Apple native fallback
+            'video/mp4;codecs="hvc1"', 
             'video/mp4;codecs="avc1"',
-            'video/mp4' // Final fallback
+            'video/mp4' 
         ];
 
         for (const codec of quicktimeCompatibleCodecs) {
@@ -334,11 +374,7 @@ const Index = () => {
         URL.revokeObjectURL(url);
         
       } else {
-        // --- Image Export using the Strict bounds config ---
-        const imageOptions = { 
-          ...baseExportOptions,
-          pixelRatio
-        };
+        const imageOptions = { ...baseExportOptions, pixelRatio };
 
         let dataUrl;
         if (exportFormat === "jpeg") {
@@ -365,7 +401,8 @@ const Index = () => {
   }, [
     device, transparent, bgColor, exportFormat, exportQuality, animEnabled, 
     animStartScale, animEndScale, animDuration, animEasing, deviceScale,
-    animStartRot, animEndRot, animRotDirection, animStartX, animStartY, animEndX, animEndY
+    animStartRot, animEndRot, animRotDirection, animStartX, animStartY, animEndX, animEndY,
+    bgType, bgImage, bgGradientType, bgGradientColor1, bgGradientColor2, bgGradientAngle
   ]);
 
   const actualEndRot = getActualEndRotation(animStartRot, animEndRot, animRotDirection);
@@ -478,37 +515,6 @@ const Index = () => {
                     </button>
                   ))}
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Canvas & Background */}
-            <AccordionItem value="canvas" className="border-b-0 mb-8 bg-muted/20 p-4 rounded-xl border">
-              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
-                Canvas Options
-              </AccordionTrigger>
-              <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
-                    Transparent Background
-                  </Label>
-                  <Switch checked={transparent} onCheckedChange={setTransparent} />
-                </div>
-
-                {!transparent && (
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
-                      <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
-                    </div>
-                    <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
-                  </div>
-                )}
-
-                {!animEnabled && (
-                  <div className="space-y-3 pt-4 border-t">
-                    <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
-                    <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
-                  </div>
-                )}
               </AccordionContent>
             </AccordionItem>
 
@@ -673,6 +679,102 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
+            {/* Canvas & Background Options */}
+            <AccordionItem value="canvas" className="border-b-0 mb-8 bg-muted/20 p-4 rounded-xl border">
+              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
+                Canvas Options
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
+                    Transparent Background
+                  </Label>
+                  <Switch checked={transparent} onCheckedChange={setTransparent} />
+                </div>
+
+                {!transparent && (
+                  <div className="space-y-4 pt-2 animate-in fade-in duration-300">
+                    <Tabs value={bgType} onValueChange={(v: any) => setBgType(v)} className="w-full">
+                      <TabsList className="w-full grid grid-cols-3">
+                        <TabsTrigger value="solid" className="text-[10px]">Solid</TabsTrigger>
+                        <TabsTrigger value="gradient" className="text-[10px]">Gradient</TabsTrigger>
+                        <TabsTrigger value="image" className="text-[10px]">Image</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+
+                    {bgType === "solid" && (
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
+                          <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                        </div>
+                        <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
+                      </div>
+                    )}
+
+                    {bgType === "gradient" && (
+                      <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] text-muted-foreground">Type</Label>
+                          <Select value={bgGradientType} onValueChange={(v: any) => setBgGradientType(v)}>
+                            <SelectTrigger className="h-8 text-xs bg-muted">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent position="popper">
+                              <SelectItem value="linear">Linear</SelectItem>
+                              <SelectItem value="radial">Radial</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 pt-1">
+                          <div className="flex-1 flex items-center gap-2">
+                             <div className="relative w-8 h-8 rounded-md border border-border overflow-hidden shrink-0">
+                              <input type="color" value={bgGradientColor1} onChange={(e) => setBgGradientColor1(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                            </div>
+                            <Input value={bgGradientColor1} onChange={(e) => setBgGradientColor1(e.target.value)} className="font-mono uppercase h-8 text-[10px]" maxLength={7} />
+                          </div>
+                          <div className="flex-1 flex items-center gap-2">
+                             <div className="relative w-8 h-8 rounded-md border border-border overflow-hidden shrink-0">
+                              <input type="color" value={bgGradientColor2} onChange={(e) => setBgGradientColor2(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                            </div>
+                            <Input value={bgGradientColor2} onChange={(e) => setBgGradientColor2(e.target.value)} className="font-mono uppercase h-8 text-[10px]" maxLength={7} />
+                          </div>
+                        </div>
+
+                        {bgGradientType === "linear" && (
+                          <div className="space-y-3 pt-2">
+                            <div className="flex justify-between"><Label className="text-[10px]">Angle</Label><span className="text-[10px] font-mono">{bgGradientAngle}°</span></div>
+                            <Slider value={[bgGradientAngle]} onValueChange={(v) => setBgGradientAngle(v[0])} max={360} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {bgType === "image" && (
+                      <div className="space-y-3 bg-background p-3 rounded-lg border shadow-sm">
+                        <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgImageUpload} className="hidden" />
+                        <Button variant="outline" className="w-full h-10 shadow-sm text-xs" onClick={() => bgFileInputRef.current?.click()}>
+                          <Upload className="mr-2 w-3 h-3" /> {bgImage ? "Change Background" : "Upload Background"}
+                        </Button>
+                        {bgImage && (
+                           <Button variant="ghost" className="w-full h-8 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setBgImage(null)}>
+                             Remove Image
+                           </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!animEnabled && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
+                    <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
+                  </div>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+
           </Accordion>
         </aside>
 
@@ -697,19 +799,18 @@ const Index = () => {
           <div className="absolute inset-0 pointer-events-none opacity-50" style={{ backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
 
           <div
-            className="flex items-center justify-center origin-center shadow-2xl transition-colors duration-300"
+            className="flex items-center justify-center origin-center shadow-2xl transition-all duration-300"
             style={{
               width: CANVAS_WIDTH,
               height: CANVAS_HEIGHT,
               transform: `scale(${previewScale})`,
-              backgroundColor: transparent ? 'transparent' : bgColor,
               ...(transparent && { backgroundImage: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%)", backgroundSize: "40px 40px" })
             }}
           >
             <div 
               ref={canvasRef}
-              className="w-full h-full flex items-center justify-center relative overflow-hidden"
-              style={{ backgroundColor: transparent ? "transparent" : bgColor }}
+              className="w-full h-full flex items-center justify-center relative overflow-hidden transition-all duration-300"
+              style={getCanvasBackgroundStyles()}
             >
               <div 
                 ref={animTargetRef}
