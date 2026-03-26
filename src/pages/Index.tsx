@@ -24,10 +24,16 @@ const Index = () => {
   const [device, setDevice] = useState<DeviceType>("iphone17");
   const [image, setImage] = useState<string | null>(null);
   const [deviceScale, setDeviceScale] = useState(60);
-  const [dropShadow, setDropShadow] = useState(30);
   const [exporting, setExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.5);
   
+  // Lighting & Shadow State
+  const [dropShadow, setDropShadow] = useState(30);
+  const [dropShadowAngle, setDropShadowAngle] = useState(180); // 180 = Straight down
+  const [dropShadowAllSides, setDropShadowAllSides] = useState(false);
+  const [innerGlow, setInnerGlow] = useState(0);
+  const [innerGlowAngle, setInnerGlowAngle] = useState(0); // 0 = Top-down lighting
+
   // Drag and Drop state
   const [isDragging, setIsDragging] = useState(false);
   
@@ -142,7 +148,7 @@ const Index = () => {
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative">
         
         {/* Sidebar */}
-        <aside className="w-full lg:w-[320px] border-r bg-card p-6 space-y-8 overflow-y-auto shrink-0 z-10 relative">
+        <aside className="w-full lg:w-[360px] border-r bg-card p-6 space-y-8 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
           
           <div className="space-y-4">
             <div className="space-y-2">
@@ -212,7 +218,50 @@ const Index = () => {
           </div>
 
           <div className="space-y-6 pt-4 border-t border-border">
-            <Label className="text-[10px] font-black uppercase text-muted-foreground">3. Canvas & Background</Label>
+            <Label className="text-[10px] font-black uppercase text-muted-foreground">3. Lighting & Shadows</Label>
+            
+            {/* Drop Shadow Controls */}
+            <div className="space-y-4 p-4 bg-muted/30 rounded-xl border">
+              <div className="space-y-3">
+                <div className="flex justify-between"><Label>Drop Shadow</Label><span className="text-xs font-mono">{dropShadow}%</span></div>
+                <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} max={100} />
+              </div>
+              
+              {dropShadow > 0 && (
+                <>
+                  <div className="flex items-center justify-between pt-2">
+                    <Label className="text-xs">Shadow on all sides</Label>
+                    <Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} />
+                  </div>
+                  
+                  {!dropShadowAllSides && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex justify-between"><Label className="text-xs text-muted-foreground">Shadow Angle</Label><span className="text-xs font-mono">{dropShadowAngle}°</span></div>
+                      <Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} max={360} />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Inner Glow Controls */}
+            <div className="space-y-4 p-4 bg-muted/30 rounded-xl border">
+              <div className="space-y-3">
+                <div className="flex justify-between"><Label>Screen Inner Glow</Label><span className="text-xs font-mono">{innerGlow}%</span></div>
+                <Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} max={100} />
+              </div>
+
+              {innerGlow > 0 && (
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between"><Label className="text-xs text-muted-foreground">Glow Direction</Label><span className="text-xs font-mono">{innerGlowAngle}°</span></div>
+                  <Slider value={[innerGlowAngle]} onValueChange={(v) => setInnerGlowAngle(v[0])} max={360} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-6 pt-4 border-t border-border pb-8">
+            <Label className="text-[10px] font-black uppercase text-muted-foreground">4. Canvas & Background</Label>
             
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -246,11 +295,6 @@ const Index = () => {
             <div className="space-y-3 pt-2">
               <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
               <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex justify-between"><Label>Drop Shadow</Label><span className="text-xs font-mono">{dropShadow}%</span></div>
-              <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} />
             </div>
           </div>
         </aside>
@@ -311,7 +355,11 @@ const Index = () => {
                   device={device} 
                   image={image} 
                   dropShadow={dropShadow} 
-                  onUploadClick={() => fileInputRef.current?.click()} // Trigger input directly from frame click
+                  dropShadowAngle={dropShadowAngle}
+                  dropShadowAllSides={dropShadowAllSides}
+                  innerGlow={innerGlow}
+                  innerGlowAngle={innerGlowAngle}
+                  onUploadClick={() => fileInputRef.current?.click()} 
                 />
               </div>
             </div>

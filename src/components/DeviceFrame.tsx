@@ -61,11 +61,51 @@ interface DeviceFrameProps {
   device: DeviceType;
   image: string | null;
   dropShadow: number;
-  onUploadClick?: () => void; // Added prop for click-to-upload
+  dropShadowAngle: number;
+  dropShadowAllSides: boolean;
+  innerGlow: number;
+  innerGlowAngle: number;
+  onUploadClick?: () => void;
 }
 
-const DeviceFrame: React.FC<DeviceFrameProps> = ({ device, image, dropShadow, onUploadClick }) => {
+const DeviceFrame: React.FC<DeviceFrameProps> = ({ 
+  device, 
+  image, 
+  dropShadow, 
+  dropShadowAngle, 
+  dropShadowAllSides,
+  innerGlow,
+  innerGlowAngle,
+  onUploadClick 
+}) => {
   const config = DEVICE_CONFIGS[device] || DEVICE_CONFIGS["iphone17"];
+
+  // --- DROP SHADOW MATH ---
+  // Convert angle to radians (subtracting 90 so 0deg is top, 90deg is right, 180deg is bottom)
+  const dsRad = (dropShadowAngle - 90) * (Math.PI / 180);
+  const dsDistance = dropShadow * 0.8;
+  const dsBlur = 20 + dropShadow * 1.5;
+  const dsAlpha = 0.1 + dropShadow * 0.005;
+  
+  const dsX = dropShadowAllSides ? 0 : Math.round(Math.cos(dsRad) * dsDistance);
+  const dsY = dropShadowAllSides ? 0 : Math.round(Math.sin(dsRad) * dsDistance);
+  
+  const dropShadowFilter = dropShadow > 0 
+    ? `drop-shadow(${dsX}px ${dsY}px ${dsBlur}px rgba(0,0,0,${dsAlpha}))` 
+    : undefined;
+
+  // --- INNER GLOW MATH ---
+  const igRad = (innerGlowAngle - 90) * (Math.PI / 180);
+  const igDistance = innerGlow * 0.8;
+  const igBlur = 10 + innerGlow * 0.6;
+  const igAlpha = innerGlow * 0.008; // Max 0.8 opacity
+  
+  const igX = Math.round(Math.cos(igRad) * igDistance);
+  const igY = Math.round(Math.sin(igRad) * igDistance);
+  
+  const innerGlowBoxShadow = innerGlow > 0 
+    ? `inset ${igX}px ${igY}px ${igBlur}px rgba(255,255,255,${igAlpha})` 
+    : "none";
   
   return (
     <div 
@@ -73,7 +113,7 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({ device, image, dropShadow, on
       style={{
         width: device.includes("macbook") ? 850 : (device.includes("ipad") ? 620 : 340),
         aspectRatio: `${config.aspectRatio}`,
-        filter: dropShadow > 0 ? `drop-shadow(0 ${15 + dropShadow * 0.5}px ${30 + dropShadow * 1.5}px rgba(0,0,0,${0.25 + dropShadow * 0.01}))` : undefined,
+        filter: dropShadowFilter,
       }}
     >
       {/* Device PNG Frame (Front Layer) */}
@@ -83,7 +123,7 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({ device, image, dropShadow, on
         className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain"
       />
 
-      {/* Screen Area (Back Layer) - Now Clickable */}
+      {/* Screen Area (Back Layer) */}
       <div 
         className="absolute z-10 overflow-hidden bg-black cursor-pointer group"
         onClick={onUploadClick}
@@ -111,6 +151,12 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({ device, image, dropShadow, on
             </span>
           </div>
         )}
+
+        {/* Inner Glow Overlay */}
+        <div 
+          className="absolute inset-0 pointer-events-none z-20 mix-blend-overlay"
+          style={{ boxShadow: innerGlowBoxShadow }}
+        />
       </div>
     </div>
   );
