@@ -3,6 +3,8 @@ import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon } from "lucide-react";
 
@@ -16,6 +18,10 @@ const Index = () => {
   const [dropShadow, setDropShadow] = useState(30);
   const [exporting, setExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.5);
+  
+  // New Background State Variables
+  const [bgColor, setBgColor] = useState("#ffffff");
+  const [transparent, setTransparent] = useState(false);
   
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +55,12 @@ const Index = () => {
     if (!canvasRef.current) return;
     setExporting(true);
     try {
-      const dataUrl = await toPng(canvasRef.current, { pixelRatio: 2, cacheBust: true });
+      const dataUrl = await toPng(canvasRef.current, { 
+        pixelRatio: 2, 
+        cacheBust: true,
+        // Optional safety for transparency rendering
+        backgroundColor: transparent ? "rgba(0,0,0,0)" : bgColor,
+      });
       const link = document.createElement("a");
       link.download = `mockup-${device}.png`;
       link.href = dataUrl;
@@ -59,7 +70,7 @@ const Index = () => {
     } finally {
       setExporting(false);
     }
-  }, [device]);
+  }, [device, transparent, bgColor]);
 
   return (
     // Strictly lock the container to the viewport height to prevent unwanted page scrolling
@@ -78,6 +89,8 @@ const Index = () => {
         
         {/* Sidebar */}
         <aside className="w-full lg:w-[320px] border-r bg-card p-6 space-y-8 overflow-y-auto shrink-0 z-10 relative">
+          
+          {/* Group 1: File Management */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Manage Asset</Label>
@@ -96,6 +109,7 @@ const Index = () => {
             </Button>
           </div>
 
+          {/* Group 2: Frame Selection */}
           <div className="space-y-4">
             <Label className="text-[10px] font-black uppercase text-muted-foreground">2. Select Frame</Label>
             <div className="grid grid-cols-1 gap-2">
@@ -120,11 +134,45 @@ const Index = () => {
             </div>
           </div>
 
+          {/* Group 3: Customization */}
           <div className="space-y-6 pt-4 border-t border-border">
-            <div className="space-y-3">
+            <Label className="text-[10px] font-black uppercase text-muted-foreground">3. Canvas & Background</Label>
+            
+            {/* Background Controls */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
+                  Transparent Background
+                </Label>
+                <Switch checked={transparent} onCheckedChange={setTransparent} />
+              </div>
+
+              {!transparent && (
+                <div className="flex items-center gap-3">
+                  <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
+                    <input
+                      type="color"
+                      value={bgColor}
+                      onChange={(e) => setBgColor(e.target.value)}
+                      className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer"
+                    />
+                  </div>
+                  <Input
+                    value={bgColor}
+                    onChange={(e) => setBgColor(e.target.value)}
+                    placeholder="#FFFFFF"
+                    className="font-mono uppercase h-10"
+                    maxLength={7}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 pt-2">
               <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
               <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
             </div>
+            
             <div className="space-y-3">
               <div className="flex justify-between"><Label>Drop Shadow</Label><span className="text-xs font-mono">{dropShadow}%</span></div>
               <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} />
@@ -137,7 +185,7 @@ const Index = () => {
           ref={mainAreaRef}
           className="flex-1 relative flex items-center justify-center bg-muted/20 overflow-hidden"
         >
-          {/* Background grid decoupled from scaled canvas */}
+          {/* Default ambient workspace background pattern */}
           <div 
             className="absolute inset-0 pointer-events-none opacity-50"
             style={{
@@ -148,17 +196,26 @@ const Index = () => {
 
           {/* Scaled Wrapper: Visually shrinks the 1920x1080 canvas to fit perfectly on the monitor */}
           <div
-            className="flex items-center justify-center origin-center"
+            className="flex items-center justify-center origin-center shadow-2xl transition-colors duration-300"
             style={{
               width: CANVAS_WIDTH,
               height: CANVAS_HEIGHT,
               transform: `scale(${previewScale})`,
+              backgroundColor: transparent ? 'transparent' : bgColor,
+              // Applies a preview checkerboard only when transparent is toggled ON
+              ...(transparent && {
+                backgroundImage: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%)",
+                backgroundSize: "40px 40px",
+              })
             }}
           >
-            {/* The Actual Exportable Canvas */}
+            {/* The Actual Exportable Node - Zero box-shadows here so transparent PNGs stay clean */}
             <div 
               ref={canvasRef}
-              className="w-full h-full flex items-center justify-center relative bg-white shadow-xl overflow-hidden"
+              className="w-full h-full flex items-center justify-center relative overflow-hidden"
+              style={{
+                backgroundColor: transparent ? "transparent" : bgColor,
+              }}
             >
               <div style={{ transform: `scale(${deviceScale / 100})` }}>
                 <DeviceFrame device={device} image={image} dropShadow={dropShadow} />
