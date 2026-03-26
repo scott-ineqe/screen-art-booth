@@ -1,15 +1,24 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { toPng } from "html-to-image";
+import { toPng, toJpeg, toSvg } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon } from "lucide-react";
 
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
+
+type ExportFormat = "png" | "jpeg" | "svg";
 
 const Index = () => {
   const [device, setDevice] = useState<DeviceType>("iphone17");
@@ -19,9 +28,13 @@ const Index = () => {
   const [exporting, setExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.5);
   
-  // New Background State Variables
+  // Background State Variables
   const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
+
+  // New Export Options State
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
+  const [exportQuality, setExportQuality] = useState<string>("2"); // Storing as string for Select component
   
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,14 +68,31 @@ const Index = () => {
     if (!canvasRef.current) return;
     setExporting(true);
     try {
-      const dataUrl = await toPng(canvasRef.current, { 
-        pixelRatio: 2, 
+      const pixelRatio = parseFloat(exportQuality);
+      
+      // JPEG doesn't support transparency, so force a white background if transparent is selected
+      const effectiveBgColor = transparent && exportFormat === "jpeg" 
+        ? "#ffffff" 
+        : (transparent ? "rgba(0,0,0,0)" : bgColor);
+
+      const exportOptions = { 
+        pixelRatio, 
         cacheBust: true,
-        // Optional safety for transparency rendering
-        backgroundColor: transparent ? "rgba(0,0,0,0)" : bgColor,
-      });
+        backgroundColor: effectiveBgColor,
+      };
+
+      let dataUrl;
+      if (exportFormat === "jpeg") {
+        dataUrl = await toJpeg(canvasRef.current, { ...exportOptions, quality: 0.95 });
+      } else if (exportFormat === "svg") {
+        dataUrl = await toSvg(canvasRef.current, exportOptions);
+      } else {
+        dataUrl = await toPng(canvasRef.current, exportOptions);
+      }
+
       const link = document.createElement("a");
-      link.download = `mockup-${device}.png`;
+      // Include the quality and format in the filename
+      link.download = `mockup-${device}-${exportQuality}x.${exportFormat}`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -70,7 +100,7 @@ const Index = () => {
     } finally {
       setExporting(false);
     }
-  }, [device, transparent, bgColor]);
+  }, [device, transparent, bgColor, exportFormat, exportQuality]);
 
   return (
     // Strictly lock the container to the viewport height to prevent unwanted page scrolling
@@ -90,7 +120,7 @@ const Index = () => {
         {/* Sidebar */}
         <aside className="w-full lg:w-[320px] border-r bg-card p-6 space-y-8 overflow-y-auto shrink-0 z-10 relative">
           
-          {/* Group 1: File Management */}
+          {/* Group 1: File Management & Export */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Manage Asset</Label>
@@ -99,13 +129,39 @@ const Index = () => {
                 <Upload className="mr-2 w-4 h-4" /> {image ? "Change Image" : "Upload Screenshot"}
               </Button>
             </div>
+
+            {/* Export Settings Row */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <Select value={exportFormat} onValueChange={(val: ExportFormat) => setExportFormat(val)}>
+                <SelectTrigger className="h-10 text-xs">
+                  <SelectValue placeholder="Format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="png">PNG</SelectItem>
+                  <SelectItem value="jpeg">JPEG</SelectItem>
+                  <SelectItem value="svg">SVG</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={exportQuality} onValueChange={setExportQuality}>
+                <SelectTrigger className="h-10 text-xs">
+                  <SelectValue placeholder="Quality" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1x (Standard)</SelectItem>
+                  <SelectItem value="2">2x (High)</SelectItem>
+                  <SelectItem value="3">3x (Ultra)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button 
               onClick={handleExport} 
               disabled={!image || exporting} 
-              className="w-full h-12 shadow-md transition-all active:scale-95"
+              className="w-full h-12 shadow-md transition-all active:scale-95 font-semibold"
             >
               <Download className="mr-2 w-4 h-4" /> 
-              {exporting ? "Preparing..." : "Export PNG"}
+              {exporting ? "Preparing..." : `Export ${exportFormat.toUpperCase()}`}
             </Button>
           </div>
 
