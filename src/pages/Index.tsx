@@ -76,15 +76,15 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground tracking-tight">Device Mockup</h1>
-              <p className="text-xs text-muted-foreground">Drop your screenshot into a realistic device frame</p>
+              <p className="text-xs text-muted-foreground">High-quality device frames for your screenshots</p>
             </div>
           </div>
-          {/* Export button removed from here to move to sidebar */}
         </div>
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row">
         <aside className="w-full lg:w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-6 space-y-6 shrink-0 overflow-y-auto">
+          {/* Screenshot and Export Actions Group */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Screenshot</Label>
@@ -95,11 +95,11 @@ const Index = () => {
               </Button>
             </div>
 
-            {/* Export button relocated here */}
+            {/* Export Button moved below the Upload button */}
             <Button 
               onClick={handleExport} 
               disabled={!image || exporting} 
-              className="w-full gap-2 h-11"
+              className="w-full gap-2 h-11 shadow-sm"
               variant="default"
             >
               <Download className="w-4 h-4" />
