@@ -18,24 +18,35 @@ import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Pla
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
 
-type ExportFormat = "png" | "jpeg" | "svg" | "mp4";
+type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
+
+// Dynamically load the GIF encoder without bloating your local bundle
+const loadGifJs = async () => {
+  if ((window as any).GIF) return;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js";
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
 
 const Index = () => {
   const [device, setDevice] = useState<DeviceType>("iphone17");
   const [image, setImage] = useState<string | null>(null);
   const [deviceScale, setDeviceScale] = useState(60);
   const [exporting, setExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0); // Tracks frame rendering progress
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportStatus, setExportStatus] = useState<string>("");
   const [previewScale, setPreviewScale] = useState(0.5);
   
-  // Lighting & Shadow State
   const [dropShadow, setDropShadow] = useState(30);
   const [dropShadowAngle, setDropShadowAngle] = useState(180); 
   const [dropShadowAllSides, setDropShadowAllSides] = useState(false);
   const [innerGlow, setInnerGlow] = useState(0);
   const [innerGlowAngle, setInnerGlowAngle] = useState(0); 
 
-  // Animation State
   const [animEnabled, setAnimEnabled] = useState(false);
   const [animStartScale, setAnimStartScale] = useState(40);
   const [animEndScale, setAnimEndScale] = useState(90);
@@ -43,19 +54,16 @@ const Index = () => {
   const [animEasing, setAnimEasing] = useState("ease-in-out");
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Drag and Drop state
   const [isDragging, setIsDragging] = useState(false);
   
-  // Background State Variables
   const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
 
-  // Export Options State
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
   const [exportQuality, setExportQuality] = useState<string>("2");
   
   const canvasRef = useRef<HTMLDivElement>(null);
-  const animTargetRef = useRef<HTMLDivElement>(null); // Ref for capturing animation transformations
+  const animTargetRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mainAreaRef = useRef<HTMLElement>(null);
 
@@ -113,6 +121,7 @@ const Index = () => {
     if (!canvasRef.current) return;
     setExporting(true);
     setExportProgress(0);
+    setExportStatus("Preparing...");
     
     try {
       const pixelRatio = parseFloat(exportQuality);
@@ -120,11 +129,15 @@ const Index = () => {
         ? "#ffffff" 
         : (transparent ? "rgba(0,0,0,0)" : bgColor);
 
-      // --- VIDEO EXPORT HANDLER ---
-      if (exportFormat === "mp4") {
+      // --- ANIMATION EXPORT HANDLER (GIF & VIDEO) ---
+      if (exportFormat === "video" || exportFormat === "gif") {
         if (!animTargetRef.current) throw new Error("Missing animation target node.");
         
-        const fps = 30;
+        // Optimize GIF to 15fps and 50% size to prevent out-of-memory browser crashes
+        const isGif = exportFormat === "gif";
+        const fps = isGif ? 15 : 30;
+        const resRatio = isGif ? 0.5 : 1; 
+        
         const duration = animEnabled ? animDuration : 1; 
         const totalFrames = duration * fps;
         const frames: HTMLCanvasElement[] = [];
@@ -132,18 +145,15 @@ const Index = () => {
         const el = canvasRef.current;
         const targetNode = animTargetRef.current;
         
-        // Save user's current styling to restore after export
         const originalTransition = targetNode.style.transitionProperty;
         const originalTransform = targetNode.style.transform;
-        
-        // Turn off real CSS transitions to manually render frames
         targetNode.style.transitionProperty = 'none';
         
-        // 1. OFFLINE RENDERER (Takes ~2-3 seconds)
+        // 1. RENDER FRAMES
+        setExportStatus("Rendering Frames...");
         for (let i = 0; i <= totalFrames; i++) {
             const t = i / totalFrames;
             
-            // Calculate easing mathematically
             let easeT = t;
             if (animEasing === 'ease-in-out') easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
             else if (animEasing === 'ease-in') easeT = t * t;
@@ -154,12 +164,10 @@ const Index = () => {
             const currentScale = startS + (endS - startS) * easeT;
             
             targetNode.style.transform = `scale(${currentScale / 100})`;
-            
-            // Brief pause allows the DOM layout to catch up
             await new Promise(r => setTimeout(r, 5));
             
             const frameCanvas = await toCanvas(el, { 
-                pixelRatio: 1, // Video frames must be 1x resolution to avoid canvas memory overflow
+                pixelRatio: resRatio, 
                 cacheBust: true,
                 backgroundColor: effectiveBgColor,
             });
@@ -167,11 +175,51 @@ const Index = () => {
             setExportProgress(Math.round((i / totalFrames) * 50)); 
         }
         
-        // Restore styles
         targetNode.style.transitionProperty = originalTransition;
         targetNode.style.transform = originalTransform;
+
+        // 2A. EXPORT AS GIF
+        if (isGif) {
+          setExportStatus("Encoding GIF...");
+          await loadGifJs();
+          
+          // Fetch the worker locally as a blob to prevent CORS blocking issues
+          const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
+          const workerBlob = await workerReq.blob();
+          const workerUrl = URL.createObjectURL(workerBlob);
+
+          const gif = new (window as any).GIF({
+            workers: 2,
+            quality: 10,
+            width: CANVAS_WIDTH * resRatio,
+            height: CANVAS_HEIGHT * resRatio,
+            workerScript: workerUrl,
+            transparent: transparent ? "rgba(0,0,0,0)" : null,
+          });
+
+          frames.forEach(frame => {
+            gif.addFrame(frame, { delay: 1000 / fps, copy: true });
+          });
+
+          gif.on('progress', (p: number) => setExportProgress(50 + Math.round(p * 50)));
+
+          gif.on('finished', (blob: Blob) => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `mockup-animated.${exportFormat}`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+            URL.revokeObjectURL(workerUrl);
+            setExporting(false);
+          });
+
+          gif.render();
+          return; // Early return to let GIF async worker finish
+        } 
         
-        // 2. VIDEO ENCODING
+        // 2B. EXPORT AS VIDEO (WebM for Chrome/Firefox, MP4 for Safari)
+        setExportStatus("Encoding Video...");
         const outCanvas = document.createElement('canvas');
         outCanvas.width = CANVAS_WIDTH;
         outCanvas.height = CANVAS_HEIGHT;
@@ -179,8 +227,6 @@ const Index = () => {
         if (!ctx) throw new Error("Could not initialize video context.");
         
         const stream = outCanvas.captureStream(fps);
-        
-        // Check browser capabilities (Safari natively supports mp4, Chrome/Firefox fall back to webm)
         let mimeType = 'video/webm';
         let ext = 'webm';
         if (MediaRecorder.isTypeSupported('video/mp4')) {
@@ -198,7 +244,6 @@ const Index = () => {
         
         recorder.start();
         
-        // Play frames through the recorder at correct FPS
         let frameIdx = 0;
         const interval = setInterval(() => {
             ctx.clearRect(0, 0, outCanvas.width, outCanvas.height);
@@ -245,8 +290,10 @@ const Index = () => {
     } catch (err) {
       console.error("Export failed", err);
     } finally {
-      setExporting(false);
-      setExportProgress(0);
+      if (exportFormat !== "gif") {
+        setExporting(false);
+        setExportProgress(0);
+      }
     }
   }, [device, transparent, bgColor, exportFormat, exportQuality, animEnabled, animStartScale, animEndScale, animDuration, animEasing, deviceScale]);
 
@@ -287,11 +334,16 @@ const Index = () => {
                   <SelectItem value="png">PNG</SelectItem>
                   <SelectItem value="jpeg">JPEG</SelectItem>
                   <SelectItem value="svg">SVG</SelectItem>
-                  <SelectItem value="mp4">Video (WebM/MP4)</SelectItem>
+                  <SelectItem value="gif">Animated GIF</SelectItem>
+                  <SelectItem value="video">Video (Browser Native)</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select value={exportQuality} onValueChange={setExportQuality} disabled={exportFormat === 'mp4' || exporting}>
+              <Select 
+                value={exportQuality} 
+                onValueChange={setExportQuality} 
+                disabled={exportFormat === 'video' || exportFormat === 'gif' || exporting}
+              >
                 <SelectTrigger className="h-10 text-xs">
                   <SelectValue placeholder="Quality" />
                 </SelectTrigger>
@@ -310,7 +362,7 @@ const Index = () => {
             >
               <Download className="mr-2 w-4 h-4" /> 
               {exporting 
-                ? (exportFormat === 'mp4' ? `Rendering Video (${exportProgress}%)` : "Preparing Export...") 
+                ? `${exportStatus} (${exportProgress}%)` 
                 : `Export ${exportFormat.toUpperCase()}`
               }
             </Button>
