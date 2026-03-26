@@ -26,6 +26,7 @@ const CANVAS_HEIGHT = 1080;
 
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
 
+// Dynamically load the GIF encoder without bloating your local bundle
 const loadGifJs = async () => {
   if ((window as any).GIF) return;
   return new Promise((resolve, reject) => {
@@ -52,18 +53,22 @@ const Index = () => {
   const [innerGlow, setInnerGlow] = useState(0);
   const [innerGlowAngle, setInnerGlowAngle] = useState(0); 
 
+  // --- Animation State ---
   const [animEnabled, setAnimEnabled] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [animDuration, setAnimDuration] = useState(2); 
   const [animEasing, setAnimEasing] = useState("ease-in-out");
   
+  // Scale
   const [animStartScale, setAnimStartScale] = useState(40);
   const [animEndScale, setAnimEndScale] = useState(90);
   
+  // Rotation
   const [animStartRot, setAnimStartRot] = useState(0);
   const [animEndRot, setAnimEndRot] = useState(0);
   const [animRotDirection, setAnimRotDirection] = useState<"cw" | "ccw">("cw");
 
+  // Position
   const [animStartX, setAnimStartX] = useState(0);
   const [animStartY, setAnimStartY] = useState(0);
   const [animEndX, setAnimEndX] = useState(0);
@@ -359,19 +364,17 @@ const Index = () => {
           
           <Accordion type="multiple" defaultValue={["asset", "frame", "lighting", "animation", "canvas"]} className="w-full">
             
-            {/* 1. Manage Asset */}
+            {/* Manage Asset */}
             <AccordionItem value="asset" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
-              <AccordionTrigger className="text-[10px] font-black uppercase text-muted-foreground hover:no-underline py-0 pb-4">
-                1. Manage Asset
+              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
+                Manage Asset
               </AccordionTrigger>
-              {/* -mx-2 px-2 expands bounds so selects/sliders aren't clipped */}
               <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                 <Button variant="outline" className="w-full h-12 shadow-sm" onClick={() => fileInputRef.current?.click()}>
                   <Upload className="mr-2 w-4 h-4" /> {image ? "Change Image" : "Upload Screenshot"}
                 </Button>
 
-                {/* Changed to stack vertically to prevent text cutoff */}
                 <div className="flex flex-col gap-3 pt-2">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground font-semibold">Format</Label>
@@ -415,10 +418,10 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* 2. Select Frame */}
+            {/* Select Frame */}
             <AccordionItem value="frame" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
-              <AccordionTrigger className="text-[10px] font-black uppercase text-muted-foreground hover:no-underline py-0 pb-4">
-                2. Select Frame
+              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
+                Select Frame
               </AccordionTrigger>
               <AccordionContent className="pb-4 pt-2 px-2 -mx-2">
                 <div className="grid grid-cols-1 gap-2">
@@ -442,10 +445,10 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* 3. Lighting & Shadows */}
+            {/* Lighting & Shadows */}
             <AccordionItem value="lighting" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
-              <AccordionTrigger className="text-[10px] font-black uppercase text-muted-foreground hover:no-underline py-0 pb-4">
-                3. Lighting & Shadows
+              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
+                Lighting & Shadows
               </AccordionTrigger>
               <AccordionContent className="space-y-6 pb-4 pt-2 px-2 -mx-2">
                 
@@ -487,16 +490,17 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* 4. Animation Config */}
+            {/* Animation Config */}
             <AccordionItem value="animation" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <div className="flex items-center justify-between">
-                <AccordionTrigger className="text-[10px] font-black uppercase text-muted-foreground hover:no-underline py-0 focus:outline-none flex-1 text-left">
-                  4. Animation Options
+                <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4 focus:outline-none flex-1 text-left [&>svg]:hidden">
+                  Animation Options
                 </AccordionTrigger>
-                <Switch checked={animEnabled} onCheckedChange={setAnimEnabled} />
+                <div className="pb-4">
+                  <Switch checked={animEnabled} onCheckedChange={setAnimEnabled} />
+                </div>
               </div>
               
-              {/* Always mount Content for correct Radix height calculation, conditional wrap inside */}
               <AccordionContent className="pb-4 pt-2 px-2 -mx-2 overflow-visible">
                 {animEnabled && (
                   <div className="space-y-6 pt-4 animate-in fade-in zoom-in-95 duration-200">
@@ -596,10 +600,10 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* 5. Canvas & Background */}
+            {/* Canvas & Background */}
             <AccordionItem value="canvas" className="border-b-0 mb-8 bg-muted/20 p-4 rounded-xl border">
-              <AccordionTrigger className="text-[10px] font-black uppercase text-muted-foreground hover:no-underline py-0 pb-4">
-                5. Canvas Options
+              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
+                Canvas Options
               </AccordionTrigger>
               <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
                 <div className="flex items-center justify-between">
