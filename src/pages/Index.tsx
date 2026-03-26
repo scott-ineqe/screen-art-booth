@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
-import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon } from "lucide-react";
+import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus } from "lucide-react";
 
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
@@ -28,24 +28,25 @@ const Index = () => {
   const [exporting, setExporting] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.5);
   
+  // Drag and Drop state
+  const [isDragging, setIsDragging] = useState(false);
+  
   // Background State Variables
   const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
 
-  // New Export Options State
+  // Export Options State
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
-  const [exportQuality, setExportQuality] = useState<string>("2"); // Storing as string for Select component
+  const [exportQuality, setExportQuality] = useState<string>("2");
   
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mainAreaRef = useRef<HTMLElement>(null);
 
-  // Dynamically scale the canvas so it always fits perfectly in the center of the available space
   useEffect(() => {
     const calculateScale = () => {
       if (!mainAreaRef.current) return;
       const { clientWidth, clientHeight } = mainAreaRef.current;
-      // Add a small 40px buffer margin around the canvas
       const scaleX = (clientWidth - 80) / CANVAS_WIDTH;
       const scaleY = (clientHeight - 80) / CANVAS_HEIGHT;
       setPreviewScale(Math.min(scaleX, scaleY));
@@ -64,13 +65,39 @@ const Index = () => {
     reader.readAsDataURL(file);
   };
 
+  // Drag and Drop Handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setImage(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
   const handleExport = useCallback(async () => {
     if (!canvasRef.current) return;
     setExporting(true);
     try {
       const pixelRatio = parseFloat(exportQuality);
-      
-      // JPEG doesn't support transparency, so force a white background if transparent is selected
       const effectiveBgColor = transparent && exportFormat === "jpeg" 
         ? "#ffffff" 
         : (transparent ? "rgba(0,0,0,0)" : bgColor);
@@ -91,7 +118,6 @@ const Index = () => {
       }
 
       const link = document.createElement("a");
-      // Include the quality and format in the filename
       link.download = `mockup-${device}-${exportQuality}x.${exportFormat}`;
       link.href = dataUrl;
       link.click();
@@ -103,7 +129,6 @@ const Index = () => {
   }, [device, transparent, bgColor, exportFormat, exportQuality]);
 
   return (
-    // Strictly lock the container to the viewport height to prevent unwanted page scrolling
     <div className="h-screen w-full bg-background flex flex-col overflow-hidden">
       <header className="border-b bg-card px-6 py-4 shrink-0 z-10 relative">
         <div className="max-w-[1600px] mx-auto flex items-center gap-3">
@@ -114,13 +139,11 @@ const Index = () => {
         </div>
       </header>
 
-      {/* min-h-0 is essential here to prevent flex children from blowing out the bounds */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative">
         
         {/* Sidebar */}
         <aside className="w-full lg:w-[320px] border-r bg-card p-6 space-y-8 overflow-y-auto shrink-0 z-10 relative">
           
-          {/* Group 1: File Management & Export */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Manage Asset</Label>
@@ -130,7 +153,6 @@ const Index = () => {
               </Button>
             </div>
 
-            {/* Export Settings Row */}
             <div className="grid grid-cols-2 gap-2 pt-2">
               <Select value={exportFormat} onValueChange={(val: ExportFormat) => setExportFormat(val)}>
                 <SelectTrigger className="h-10 text-xs">
@@ -165,7 +187,6 @@ const Index = () => {
             </Button>
           </div>
 
-          {/* Group 2: Frame Selection */}
           <div className="space-y-4">
             <Label className="text-[10px] font-black uppercase text-muted-foreground">2. Select Frame</Label>
             <div className="grid grid-cols-1 gap-2">
@@ -190,11 +211,9 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Group 3: Customization */}
           <div className="space-y-6 pt-4 border-t border-border">
             <Label className="text-[10px] font-black uppercase text-muted-foreground">3. Canvas & Background</Label>
             
-            {/* Background Controls */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
@@ -236,12 +255,29 @@ const Index = () => {
           </div>
         </aside>
 
-        {/* Main Canvas Area - Strictly hidden overflow to maintain dead-center alignment */}
+        {/* Main Canvas Area */}
         <main 
           ref={mainAreaRef}
           className="flex-1 relative flex items-center justify-center bg-muted/20 overflow-hidden"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
-          {/* Default ambient workspace background pattern */}
+          {/* Drag Overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 z-50 bg-primary/5 border-4 border-primary/50 flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-200">
+              <div className="bg-background/90 p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in-95 pointer-events-none">
+                <div className="bg-primary/10 p-4 rounded-full">
+                  <ImagePlus className="w-12 h-12 text-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold tracking-tight">Drop Image Here</p>
+                  <p className="text-sm text-muted-foreground mt-1">Updates the device screen instantly</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div 
             className="absolute inset-0 pointer-events-none opacity-50"
             style={{
@@ -250,7 +286,6 @@ const Index = () => {
             }}
           />
 
-          {/* Scaled Wrapper: Visually shrinks the 1920x1080 canvas to fit perfectly on the monitor */}
           <div
             className="flex items-center justify-center origin-center shadow-2xl transition-colors duration-300"
             style={{
@@ -258,14 +293,12 @@ const Index = () => {
               height: CANVAS_HEIGHT,
               transform: `scale(${previewScale})`,
               backgroundColor: transparent ? 'transparent' : bgColor,
-              // Applies a preview checkerboard only when transparent is toggled ON
               ...(transparent && {
                 backgroundImage: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%)",
                 backgroundSize: "40px 40px",
               })
             }}
           >
-            {/* The Actual Exportable Node - Zero box-shadows here so transparent PNGs stay clean */}
             <div 
               ref={canvasRef}
               className="w-full h-full flex items-center justify-center relative overflow-hidden"
@@ -274,7 +307,12 @@ const Index = () => {
               }}
             >
               <div style={{ transform: `scale(${deviceScale / 100})` }}>
-                <DeviceFrame device={device} image={image} dropShadow={dropShadow} />
+                <DeviceFrame 
+                  device={device} 
+                  image={image} 
+                  dropShadow={dropShadow} 
+                  onUploadClick={() => fileInputRef.current?.click()} // Trigger input directly from frame click
+                />
               </div>
             </div>
           </div>
