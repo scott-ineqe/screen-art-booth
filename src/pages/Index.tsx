@@ -110,15 +110,17 @@ const Index = () => {
     const calculateScale = () => {
       if (!mainAreaRef.current) return;
       const { clientWidth, clientHeight } = mainAreaRef.current;
-      const scaleX = (clientWidth - 80) / CANVAS_WIDTH;
-      const scaleY = (clientHeight - 80) / CANVAS_HEIGHT;
+      // Smart padding: Less padding on mobile to maximize canvas visibility
+      const padding = window.innerWidth < 1024 ? 32 : 80;
+      const scaleX = (clientWidth - padding) / CANVAS_WIDTH;
+      const scaleY = (clientHeight - padding) / CANVAS_HEIGHT;
       setPreviewScale(Math.min(scaleX, scaleY));
     };
 
     calculateScale();
     window.addEventListener("resize", calculateScale);
     return () => window.removeEventListener("resize", calculateScale);
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT]); // Re-calculate preview scale when dimensions change
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT]); 
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -193,7 +195,7 @@ const Index = () => {
         backgroundImage: `url(${bgImage})`, 
         backgroundSize: 'cover', 
         backgroundPosition: 'center',
-        backgroundColor: '#ffffff' // safety fallback behind image
+        backgroundColor: '#ffffff' 
       };
     }
     return { backgroundColor: bgColor };
@@ -207,7 +209,6 @@ const Index = () => {
     
     try {
       const pixelRatio = parseFloat(exportQuality);
-      
       let effectiveBgColor = "rgba(0,0,0,0)";
       if (exportFormat === "jpeg") {
         effectiveBgColor = (transparent || bgType !== "solid") ? "#ffffff" : bgColor;
@@ -412,7 +413,7 @@ const Index = () => {
     animStartScale, animEndScale, animDuration, animEasing, deviceScale,
     animStartRot, animEndRot, animRotDirection, animStartX, animStartY, animEndX, animEndY,
     bgType, bgImage, bgGradientType, bgGradientColor1, bgGradientColor2, bgGradientAngle,
-    CANVAS_WIDTH, CANVAS_HEIGHT // Include derived canvas dimensions
+    CANVAS_WIDTH, CANVAS_HEIGHT 
   ]);
 
   const actualEndRot = getActualEndRotation(animStartRot, animEndRot, animRotDirection);
@@ -422,7 +423,8 @@ const Index = () => {
   const activeY = animEnabled ? (isPlaying ? animEndY : animStartY) : 0;
 
   return (
-    <div className="h-screen w-full bg-background flex flex-col overflow-hidden">
+    // 100dvh prevents clipping caused by dynamic mobile URL bars
+    <div className="h-[100dvh] w-full bg-background flex flex-col overflow-hidden">
       <header className="border-b bg-card px-6 py-4 shrink-0 z-10 relative">
         <div className="max-w-[1600px] mx-auto flex items-center gap-3">
           <div className="bg-primary p-2 rounded-lg">
@@ -432,10 +434,11 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative">
+      {/* flex-col-reverse pushes the sidebar to the bottom on mobile screens, Canvas on top */}
+      <div className="flex-1 flex flex-col-reverse lg:flex-row min-h-0 relative">
         
         {/* Sidebar */}
-        <aside className="w-full lg:w-[360px] border-r bg-card p-4 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
+        <aside className="w-full lg:w-[360px] flex-1 lg:flex-none border-t lg:border-t-0 lg:border-r bg-card p-4 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
           
           <Accordion 
             type="multiple" 
@@ -444,7 +447,7 @@ const Index = () => {
               setOpenAccordions(val);
               setAnimEnabled(val.includes("animation"));
             }} 
-            className="w-full"
+            className="w-full pb-8 lg:pb-0" // Extra padding bottom for mobile scrolling
           >
             
             {/* Manage Asset */}
@@ -804,9 +807,10 @@ const Index = () => {
           </Accordion>
         </aside>
 
+        {/* Main Canvas Area */}
         <main 
           ref={mainAreaRef}
-          className="flex-1 relative flex items-center justify-center bg-muted/20 overflow-hidden"
+          className="w-full h-[45vh] min-h-[300px] lg:h-auto lg:flex-1 relative flex items-center justify-center bg-muted/20 overflow-hidden shrink-0"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
