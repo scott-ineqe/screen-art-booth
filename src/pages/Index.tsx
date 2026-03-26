@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { toPng, toJpeg, toSvg, toCanvas } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,10 +22,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Play, RotateCcw, Crosshair } from "lucide-react";
 
-const CANVAS_WIDTH = 1920;
-const CANVAS_HEIGHT = 1080;
-
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
+type CanvasRatio = "16:9" | "9:16" | "1:1";
 
 // Dynamically load the GIF encoder without bloating your local bundle
 const loadGifJs = async () => {
@@ -78,6 +76,18 @@ const Index = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [transparent, setTransparent] = useState(false);
 
+  // --- Canvas Dimensions State ---
+  const [canvasRatio, setCanvasRatio] = useState<CanvasRatio>("16:9");
+
+  const canvasDimensions = useMemo(() => {
+    if (canvasRatio === "9:16") return { width: 1080, height: 1920 };
+    if (canvasRatio === "1:1") return { width: 1080, height: 1080 };
+    return { width: 1920, height: 1080 };
+  }, [canvasRatio]);
+
+  const CANVAS_WIDTH = canvasDimensions.width;
+  const CANVAS_HEIGHT = canvasDimensions.height;
+
   // --- Background Options State ---
   const [bgType, setBgType] = useState<"solid" | "gradient" | "image">("solid");
   const [bgColor, setBgColor] = useState("#ffffff");
@@ -108,7 +118,7 @@ const Index = () => {
     calculateScale();
     window.addEventListener("resize", calculateScale);
     return () => window.removeEventListener("resize", calculateScale);
-  }, []);
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT]); // Re-calculate preview scale when dimensions change
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -198,7 +208,6 @@ const Index = () => {
     try {
       const pixelRatio = parseFloat(exportQuality);
       
-      // Safely handle effective background color for standard JPEG formats preventing black backgrounds
       let effectiveBgColor = "rgba(0,0,0,0)";
       if (exportFormat === "jpeg") {
         effectiveBgColor = (transparent || bgType !== "solid") ? "#ffffff" : bgColor;
@@ -402,7 +411,8 @@ const Index = () => {
     device, transparent, bgColor, exportFormat, exportQuality, animEnabled, 
     animStartScale, animEndScale, animDuration, animEasing, deviceScale,
     animStartRot, animEndRot, animRotDirection, animStartX, animStartY, animEndX, animEndY,
-    bgType, bgImage, bgGradientType, bgGradientColor1, bgGradientColor2, bgGradientAngle
+    bgType, bgImage, bgGradientType, bgGradientColor1, bgGradientColor2, bgGradientAngle,
+    CANVAS_WIDTH, CANVAS_HEIGHT // Include derived canvas dimensions
   ]);
 
   const actualEndRot = getActualEndRotation(animStartRot, animEndRot, animRotDirection);
@@ -427,7 +437,15 @@ const Index = () => {
         {/* Sidebar */}
         <aside className="w-full lg:w-[360px] border-r bg-card p-4 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
           
-          <Accordion type="multiple" value={openAccordions} onValueChange={(val) => {setOpenAccordions(val);setAnimEnabled(val.includes("animation"));}} className="w-full">
+          <Accordion 
+            type="multiple" 
+            value={openAccordions} 
+            onValueChange={(val) => {
+              setOpenAccordions(val);
+              setAnimEnabled(val.includes("animation"));
+            }} 
+            className="w-full"
+          >
             
             {/* Manage Asset */}
             <AccordionItem value="asset" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
@@ -507,102 +525,6 @@ const Index = () => {
                     </button>
                   ))}
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Canvas & Background Options */}
-            <AccordionItem value="canvas" className="border-b-0 mb-8 bg-muted/20 p-4 rounded-xl border">
-              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
-                Canvas Options
-              </AccordionTrigger>
-              <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
-                <div className="flex items-center justify-between pb-2 border-b">
-                  <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
-                    Transparent Background
-                  </Label>
-                  <Switch checked={transparent} onCheckedChange={setTransparent} />
-                </div>
-
-                {!transparent && (
-                  <div className="space-y-4 pt-2 animate-in fade-in duration-300">
-                    <Tabs value={bgType} onValueChange={(v: any) => setBgType(v)} className="w-full">
-                      <TabsList className="w-full grid grid-cols-3">
-                        <TabsTrigger value="solid" className="text-[10px]">Solid</TabsTrigger>
-                        <TabsTrigger value="gradient" className="text-[10px]">Gradient</TabsTrigger>
-                        <TabsTrigger value="image" className="text-[10px]">Image</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-
-                    {bgType === "solid" && (
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
-                          <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
-                        </div>
-                        <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
-                      </div>
-                    )}
-
-                    {bgType === "gradient" && (
-                      <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] text-muted-foreground">Type</Label>
-                          <Select value={bgGradientType} onValueChange={(v: any) => setBgGradientType(v)}>
-                            <SelectTrigger className="h-8 text-xs bg-muted">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent position="popper">
-                              <SelectItem value="linear">Linear</SelectItem>
-                              <SelectItem value="radial">Radial</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 pt-1">
-                          <div className="flex-1 flex items-center gap-2">
-                             <div className="relative w-8 h-8 rounded-md border border-border overflow-hidden shrink-0">
-                              <input type="color" value={bgGradientColor1} onChange={(e) => setBgGradientColor1(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
-                            </div>
-                            <Input value={bgGradientColor1} onChange={(e) => setBgGradientColor1(e.target.value)} className="font-mono uppercase h-8 text-[10px]" maxLength={7} />
-                          </div>
-                          <div className="flex-1 flex items-center gap-2">
-                             <div className="relative w-8 h-8 rounded-md border border-border overflow-hidden shrink-0">
-                              <input type="color" value={bgGradientColor2} onChange={(e) => setBgGradientColor2(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
-                            </div>
-                            <Input value={bgGradientColor2} onChange={(e) => setBgGradientColor2(e.target.value)} className="font-mono uppercase h-8 text-[10px]" maxLength={7} />
-                          </div>
-                        </div>
-
-                        {bgGradientType === "linear" && (
-                          <div className="space-y-3 pt-2">
-                            <div className="flex justify-between"><Label className="text-[10px]">Angle</Label><span className="text-[10px] font-mono">{bgGradientAngle}°</span></div>
-                            <Slider value={[bgGradientAngle]} onValueChange={(v) => setBgGradientAngle(v[0])} max={360} />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {bgType === "image" && (
-                      <div className="space-y-3 bg-background p-3 rounded-lg border shadow-sm">
-                        <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgImageUpload} className="hidden" />
-                        <Button variant="outline" className="w-full h-10 shadow-sm text-xs" onClick={() => bgFileInputRef.current?.click()}>
-                          <Upload className="mr-2 w-3 h-3" /> {bgImage ? "Change Background" : "Upload Background"}
-                        </Button>
-                        {bgImage && (
-                           <Button variant="ghost" className="w-full h-8 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setBgImage(null)}>
-                             Remove Image
-                           </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {!animEnabled && (
-                  <div className="space-y-3 pt-4 border-t">
-                    <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
-                    <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
-                  </div>
-                )}
               </AccordionContent>
             </AccordionItem>
 
@@ -762,6 +684,118 @@ const Index = () => {
                         <RotateCcw className="w-4 h-4" />
                       </Button>
                     </div>
+                  </div>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Canvas & Background Options */}
+            <AccordionItem value="canvas" className="border-b-0 mb-8 bg-muted/20 p-4 rounded-xl border">
+              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
+                Canvas Options
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
+                <div className="flex flex-col gap-3 pb-2 border-b">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground font-semibold">Canvas Size</Label>
+                    <Select value={canvasRatio} onValueChange={(val: CanvasRatio) => setCanvasRatio(val)}>
+                      <SelectTrigger className="h-10 text-xs bg-background w-full">
+                        <SelectValue placeholder="Canvas Size" />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="16:9">16:9 (1920x1080)</SelectItem>
+                        <SelectItem value="9:16">9:16 (1080x1920)</SelectItem>
+                        <SelectItem value="1:1">1:1 (1080x1080)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pb-2 border-b pt-2">
+                  <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
+                    Transparent Background
+                  </Label>
+                  <Switch checked={transparent} onCheckedChange={setTransparent} />
+                </div>
+
+                {!transparent && (
+                  <div className="space-y-4 pt-2 animate-in fade-in duration-300">
+                    <Tabs value={bgType} onValueChange={(v: any) => setBgType(v)} className="w-full">
+                      <TabsList className="w-full grid grid-cols-3">
+                        <TabsTrigger value="solid" className="text-[10px]">Solid</TabsTrigger>
+                        <TabsTrigger value="gradient" className="text-[10px]">Gradient</TabsTrigger>
+                        <TabsTrigger value="image" className="text-[10px]">Image</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+
+                    {bgType === "solid" && (
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
+                          <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                        </div>
+                        <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
+                      </div>
+                    )}
+
+                    {bgType === "gradient" && (
+                      <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] text-muted-foreground">Type</Label>
+                          <Select value={bgGradientType} onValueChange={(v: any) => setBgGradientType(v)}>
+                            <SelectTrigger className="h-8 text-xs bg-muted">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent position="popper">
+                              <SelectItem value="linear">Linear</SelectItem>
+                              <SelectItem value="radial">Radial</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 pt-1">
+                          <div className="flex-1 flex items-center gap-2">
+                             <div className="relative w-8 h-8 rounded-md border border-border overflow-hidden shrink-0">
+                              <input type="color" value={bgGradientColor1} onChange={(e) => setBgGradientColor1(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                            </div>
+                            <Input value={bgGradientColor1} onChange={(e) => setBgGradientColor1(e.target.value)} className="font-mono uppercase h-8 text-[10px]" maxLength={7} />
+                          </div>
+                          <div className="flex-1 flex items-center gap-2">
+                             <div className="relative w-8 h-8 rounded-md border border-border overflow-hidden shrink-0">
+                              <input type="color" value={bgGradientColor2} onChange={(e) => setBgGradientColor2(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                            </div>
+                            <Input value={bgGradientColor2} onChange={(e) => setBgGradientColor2(e.target.value)} className="font-mono uppercase h-8 text-[10px]" maxLength={7} />
+                          </div>
+                        </div>
+
+                        {bgGradientType === "linear" && (
+                          <div className="space-y-3 pt-2">
+                            <div className="flex justify-between"><Label className="text-[10px]">Angle</Label><span className="text-[10px] font-mono">{bgGradientAngle}°</span></div>
+                            <Slider value={[bgGradientAngle]} onValueChange={(v) => setBgGradientAngle(v[0])} max={360} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {bgType === "image" && (
+                      <div className="space-y-3 bg-background p-3 rounded-lg border shadow-sm">
+                        <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgImageUpload} className="hidden" />
+                        <Button variant="outline" className="w-full h-10 shadow-sm text-xs" onClick={() => bgFileInputRef.current?.click()}>
+                          <Upload className="mr-2 w-3 h-3" /> {bgImage ? "Change Background" : "Upload Background"}
+                        </Button>
+                        {bgImage && (
+                           <Button variant="ghost" className="w-full h-8 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setBgImage(null)}>
+                             Remove Image
+                           </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!animEnabled && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
+                    <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
                   </div>
                 )}
               </AccordionContent>
