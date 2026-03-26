@@ -24,7 +24,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     screenArea: { 
       top: "1.8%", 
       left: "4.0%", 
-      width: "94%", 
+      width: "92%", 
       height: "96.4%", 
       borderRadius: "44px" 
     }
