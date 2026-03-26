@@ -25,7 +25,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
       top: "3.9%", 
       left: "4.1%", 
       width: "93.9%", 
-      height: "92.2", 
+      height: "92.2%", 
       borderRadius: "44px" 
     }
   },
