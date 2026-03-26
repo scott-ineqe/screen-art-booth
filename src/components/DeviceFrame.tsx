@@ -23,7 +23,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     // Expanded slightly to bleed under the bezel
     screenArea: { 
       top: "1.8%", 
-      left: "6%", 
+      left: "10%", 
       width: "90%", 
       height: "94%", 
       borderRadius: "44px" 
