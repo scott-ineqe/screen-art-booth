@@ -12,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Play, RotateCcw } from "lucide-react";
 
@@ -20,7 +26,6 @@ const CANVAS_HEIGHT = 1080;
 
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
 
-// Dynamically load the GIF encoder without bloating your local bundle
 const loadGifJs = async () => {
   if ((window as any).GIF) return;
   return new Promise((resolve, reject) => {
@@ -129,11 +134,9 @@ const Index = () => {
         ? "#ffffff" 
         : (transparent ? "rgba(0,0,0,0)" : bgColor);
 
-      // --- ANIMATION EXPORT HANDLER (GIF & VIDEO) ---
       if (exportFormat === "video" || exportFormat === "gif") {
         if (!animTargetRef.current) throw new Error("Missing animation target node.");
         
-        // Optimize GIF to 15fps and 50% size to prevent out-of-memory browser crashes
         const isGif = exportFormat === "gif";
         const fps = isGif ? 15 : 30;
         const resRatio = isGif ? 0.5 : 1; 
@@ -149,7 +152,6 @@ const Index = () => {
         const originalTransform = targetNode.style.transform;
         targetNode.style.transitionProperty = 'none';
         
-        // 1. RENDER FRAMES
         setExportStatus("Rendering Frames...");
         for (let i = 0; i <= totalFrames; i++) {
             const t = i / totalFrames;
@@ -178,12 +180,10 @@ const Index = () => {
         targetNode.style.transitionProperty = originalTransition;
         targetNode.style.transform = originalTransform;
 
-        // 2A. EXPORT AS GIF
         if (isGif) {
           setExportStatus("Encoding GIF...");
           await loadGifJs();
           
-          // Fetch the worker locally as a blob to prevent CORS blocking issues
           const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
           const workerBlob = await workerReq.blob();
           const workerUrl = URL.createObjectURL(workerBlob);
@@ -215,10 +215,9 @@ const Index = () => {
           });
 
           gif.render();
-          return; // Early return to let GIF async worker finish
+          return; 
         } 
         
-        // 2B. EXPORT AS VIDEO (WebM for Chrome/Firefox, MP4 for Safari)
         setExportStatus("Encoding Video...");
         const outCanvas = document.createElement('canvas');
         outCanvas.width = CANVAS_WIDTH;
@@ -266,7 +265,6 @@ const Index = () => {
         URL.revokeObjectURL(url);
         
       } else {
-        // --- STANDARD IMAGE EXPORT ---
         const exportOptions = { 
           pixelRatio, 
           cacheBust: true,
@@ -314,203 +312,231 @@ const Index = () => {
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative">
         
-        <aside className="w-full lg:w-[360px] border-r bg-card p-6 space-y-8 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Manage Asset</Label>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-              <Button variant="outline" className="w-full h-12 shadow-sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-2 w-4 h-4" /> {image ? "Change Image" : "Upload Screenshot"}
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <Select value={exportFormat} onValueChange={(val: ExportFormat) => setExportFormat(val)}>
-                <SelectTrigger className="h-10 text-xs">
-                  <SelectValue placeholder="Format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="png">PNG</SelectItem>
-                  <SelectItem value="jpeg">JPEG</SelectItem>
-                  <SelectItem value="svg">SVG</SelectItem>
-                  <SelectItem value="gif">Animated GIF</SelectItem>
-                  <SelectItem value="video">Video (Browser Native)</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select 
-                value={exportQuality} 
-                onValueChange={setExportQuality} 
-                disabled={exportFormat === 'video' || exportFormat === 'gif' || exporting}
-              >
-                <SelectTrigger className="h-10 text-xs">
-                  <SelectValue placeholder="Quality" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1x (Standard)</SelectItem>
-                  <SelectItem value="2">2x (High)</SelectItem>
-                  <SelectItem value="3">3x (Ultra)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button 
-              onClick={handleExport} 
-              disabled={!image || exporting} 
-              className="w-full h-12 shadow-md transition-all active:scale-95 font-semibold"
-            >
-              <Download className="mr-2 w-4 h-4" /> 
-              {exporting 
-                ? `${exportStatus} (${exportProgress}%)` 
-                : `Export ${exportFormat.toUpperCase()}`
-              }
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            <Label className="text-[10px] font-black uppercase text-muted-foreground">2. Select Frame</Label>
-            <div className="grid grid-cols-1 gap-2">
-              {[
-                { id: "iphone17", label: "iPhone 17", icon: <Smartphone className="w-4 h-4" /> },
-                { id: "ipad-air", label: "iPad Air", icon: <Tablet className="w-4 h-4" /> },
-                { id: "macbook-pro-16", label: "MacBook Pro 16", icon: <Laptop className="w-4 h-4" /> },
-              ].map((d) => (
-                <button
-                  key={d.id}
-                  onClick={() => setDevice(d.id as DeviceType)}
-                  className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
-                    device === d.id 
-                      ? "border-primary bg-primary/10 text-primary shadow-inner" 
-                      : "border-border hover:bg-muted/50"
-                  }`}
-                >
-                  {d.icon}
-                  <span className="font-bold text-sm">{d.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-6 pt-4 border-t border-border">
-            <Label className="text-[10px] font-black uppercase text-muted-foreground">3. Lighting & Shadows</Label>
-            
-            <div className="space-y-4 p-4 bg-muted/30 rounded-xl border">
-              <div className="space-y-3">
-                <div className="flex justify-between"><Label>Drop Shadow</Label><span className="text-xs font-mono">{dropShadow}%</span></div>
-                <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} max={100} />
-              </div>
+        <aside className="w-full lg:w-[360px] border-r bg-card flex flex-col shrink-0 z-10 relative">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {/* Accordion grouping for a cleaner UI */}
+            <Accordion type="multiple" defaultValue={["asset", "frame"]} className="w-full">
               
-              {dropShadow > 0 && (
-                <>
-                  <div className="flex items-center justify-between pt-2">
-                    <Label className="text-xs">Shadow on all sides</Label>
-                    <Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} />
+              {/* Asset & Export Section */}
+              <AccordionItem value="asset" className="border-b px-6">
+                <AccordionTrigger className="text-[11px] font-black uppercase text-muted-foreground hover:no-underline py-4">
+                  Manage Asset
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 pb-6">
+                  <div className="space-y-2">
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    <Button variant="outline" className="w-full h-12 shadow-sm" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="mr-2 w-4 h-4" /> {image ? "Change Image" : "Upload Screenshot"}
+                    </Button>
                   </div>
-                  
-                  {!dropShadowAllSides && (
-                    <div className="space-y-3 pt-2">
-                      <div className="flex justify-between"><Label className="text-xs text-muted-foreground">Shadow Angle</Label><span className="text-xs font-mono">{dropShadowAngle}°</span></div>
-                      <Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} max={360} />
+
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <Select value={exportFormat} onValueChange={(val: ExportFormat) => setExportFormat(val)}>
+                      <SelectTrigger className="h-10 text-xs">
+                        <SelectValue placeholder="Format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="png">PNG</SelectItem>
+                        <SelectItem value="jpeg">JPEG</SelectItem>
+                        <SelectItem value="svg">SVG</SelectItem>
+                        <SelectItem value="gif">Animated GIF</SelectItem>
+                        <SelectItem value="video">Video (Browser Native)</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select 
+                      value={exportQuality} 
+                      onValueChange={setExportQuality} 
+                      disabled={exportFormat === 'video' || exportFormat === 'gif' || exporting}
+                    >
+                      <SelectTrigger className="h-10 text-xs">
+                        <SelectValue placeholder="Quality" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1x (Standard)</SelectItem>
+                        <SelectItem value="2">2x (High)</SelectItem>
+                        <SelectItem value="3">3x (Ultra)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button 
+                    onClick={handleExport} 
+                    disabled={!image || exporting} 
+                    className="w-full h-12 shadow-md transition-all active:scale-95 font-semibold"
+                  >
+                    <Download className="mr-2 w-4 h-4" /> 
+                    {exporting 
+                      ? `${exportStatus} (${exportProgress}%)` 
+                      : `Export ${exportFormat.toUpperCase()}`
+                    }
+                  </Button>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Frame Selection Section */}
+              <AccordionItem value="frame" className="border-b px-6">
+                <AccordionTrigger className="text-[11px] font-black uppercase text-muted-foreground hover:no-underline py-4">
+                  Select Frame
+                </AccordionTrigger>
+                <AccordionContent className="grid grid-cols-1 gap-2 pb-6">
+                  {[
+                    { id: "iphone17", label: "iPhone 17", icon: <Smartphone className="w-4 h-4" /> },
+                    { id: "ipad-air", label: "iPad Air", icon: <Tablet className="w-4 h-4" /> },
+                    { id: "macbook-pro-16", label: "MacBook Pro 16", icon: <Laptop className="w-4 h-4" /> },
+                  ].map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => setDevice(d.id as DeviceType)}
+                      className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
+                        device === d.id 
+                          ? "border-primary bg-primary/10 text-primary shadow-inner" 
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      {d.icon}
+                      <span className="font-bold text-sm">{d.label}</span>
+                    </button>
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Lighting & Shadows Section */}
+              <AccordionItem value="lighting" className="border-b px-6">
+                <AccordionTrigger className="text-[11px] font-black uppercase text-muted-foreground hover:no-underline py-4">
+                  Lighting & Shadows
+                </AccordionTrigger>
+                <AccordionContent className="space-y-6 pb-6 pt-2">
+                  <div className="space-y-4 p-4 bg-muted/30 rounded-xl border">
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label>Drop Shadow</Label><span className="text-xs font-mono">{dropShadow}%</span></div>
+                      <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} max={100} />
+                    </div>
+                    
+                    {dropShadow > 0 && (
+                      <>
+                        <div className="flex items-center justify-between pt-2">
+                          <Label className="text-xs">Shadow on all sides</Label>
+                          <Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} />
+                        </div>
+                        {!dropShadowAllSides && (
+                          <div className="space-y-3 pt-2">
+                            <div className="flex justify-between"><Label className="text-xs text-muted-foreground">Shadow Angle</Label><span className="text-xs font-mono">{dropShadowAngle}°</span></div>
+                            <Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} max={360} />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="space-y-4 p-4 bg-muted/30 rounded-xl border">
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><Label>Screen Inner Glow</Label><span className="text-xs font-mono">{innerGlow}%</span></div>
+                      <Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} max={100} />
+                    </div>
+
+                    {innerGlow > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex justify-between"><Label className="text-xs text-muted-foreground">Glow Direction</Label><span className="text-xs font-mono">{innerGlowAngle}°</span></div>
+                        <Slider value={[innerGlowAngle]} onValueChange={(v) => setInnerGlowAngle(v[0])} max={360} />
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Animation Section */}
+              <AccordionItem value="animation" className="border-b px-6">
+                <AccordionTrigger className="text-[11px] font-black uppercase text-muted-foreground hover:no-underline py-4">
+                  Animation
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 pb-6 pt-2">
+                  <div className="flex items-center justify-between pb-2">
+                    <Label className="text-sm font-medium cursor-pointer" onClick={() => setAnimEnabled(!animEnabled)}>Enable Animation</Label>
+                    <Switch checked={animEnabled} onCheckedChange={setAnimEnabled} />
+                  </div>
+
+                  {animEnabled && (
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-xl border animate-in fade-in zoom-in-95 duration-200">
+                      <div className="space-y-3">
+                        <div className="flex justify-between"><Label>Start Scale</Label><span className="text-xs font-mono">{animStartScale}%</span></div>
+                        <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} disabled={isPlaying} />
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between"><Label>End Scale</Label><span className="text-xs font-mono">{animEndScale}%</span></div>
+                        <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} disabled={isPlaying} />
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between"><Label>Duration (seconds)</Label><span className="text-xs font-mono">{animDuration}s</span></div>
+                        <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.5} disabled={isPlaying} />
+                      </div>
+                      <div className="space-y-2 pt-2">
+                        <Label className="text-xs">Easing</Label>
+                        <Select value={animEasing} onValueChange={setAnimEasing} disabled={isPlaying}>
+                          <SelectTrigger className="h-10 text-xs bg-background">
+                            <SelectValue placeholder="Select easing..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="linear">Linear (Constant speed)</SelectItem>
+                            <SelectItem value="ease-in">Ease In (Starts slow)</SelectItem>
+                            <SelectItem value="ease-out">Ease Out (Ends slow)</SelectItem>
+                            <SelectItem value="ease-in-out">Ease In Out (Smooth ends)</SelectItem>
+                            <SelectItem value="cubic-bezier(0.68, -0.55, 0.265, 1.55)">Bouncy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button onClick={handlePlayAnimation} disabled={isPlaying} className="flex-1 font-semibold">
+                          <Play className="w-4 h-4 mr-2 fill-current" /> Play
+                        </Button>
+                        <Button variant="outline" onClick={handleResetAnimation} disabled={!isPlaying} className="px-3" title="Reset Animation">
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   )}
-                </>
-              )}
-            </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="space-y-4 p-4 bg-muted/30 rounded-xl border">
-              <div className="space-y-3">
-                <div className="flex justify-between"><Label>Screen Inner Glow</Label><span className="text-xs font-mono">{innerGlow}%</span></div>
-                <Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} max={100} />
-              </div>
+              {/* Canvas & Background Section */}
+              <AccordionItem value="canvas" className="border-b-0 px-6">
+                <AccordionTrigger className="text-[11px] font-black uppercase text-muted-foreground hover:no-underline py-4">
+                  Canvas & Background
+                </AccordionTrigger>
+                <AccordionContent className="space-y-6 pb-8 pt-2">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
+                        Transparent Background
+                      </Label>
+                      <Switch checked={transparent} onCheckedChange={setTransparent} />
+                    </div>
 
-              {innerGlow > 0 && (
-                <div className="space-y-3 pt-2">
-                  <div className="flex justify-between"><Label className="text-xs text-muted-foreground">Glow Direction</Label><span className="text-xs font-mono">{innerGlowAngle}°</span></div>
-                  <Slider value={[innerGlowAngle]} onValueChange={(v) => setInnerGlowAngle(v[0])} max={360} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-6 pt-4 border-t border-border">
-            <div className="flex items-center justify-between">
-              <Label className="text-[10px] font-black uppercase text-muted-foreground">4. Animation</Label>
-              <Switch checked={animEnabled} onCheckedChange={setAnimEnabled} />
-            </div>
-
-            {animEnabled && (
-              <div className="space-y-4 p-4 bg-muted/30 rounded-xl border animate-in fade-in zoom-in-95 duration-200">
-                <div className="space-y-3">
-                  <div className="flex justify-between"><Label>Start Scale</Label><span className="text-xs font-mono">{animStartScale}%</span></div>
-                  <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} disabled={isPlaying} />
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between"><Label>End Scale</Label><span className="text-xs font-mono">{animEndScale}%</span></div>
-                  <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} disabled={isPlaying} />
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between"><Label>Duration (seconds)</Label><span className="text-xs font-mono">{animDuration}s</span></div>
-                  <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.5} disabled={isPlaying} />
-                </div>
-                <div className="space-y-2 pt-2">
-                  <Label className="text-xs">Easing</Label>
-                  <Select value={animEasing} onValueChange={setAnimEasing} disabled={isPlaying}>
-                    <SelectTrigger className="h-10 text-xs bg-background">
-                      <SelectValue placeholder="Select easing..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="linear">Linear (Constant speed)</SelectItem>
-                      <SelectItem value="ease-in">Ease In (Starts slow)</SelectItem>
-                      <SelectItem value="ease-out">Ease Out (Ends slow)</SelectItem>
-                      <SelectItem value="ease-in-out">Ease In Out (Smooth ends)</SelectItem>
-                      <SelectItem value="cubic-bezier(0.68, -0.55, 0.265, 1.55)">Bouncy</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button onClick={handlePlayAnimation} disabled={isPlaying} className="flex-1 font-semibold">
-                    <Play className="w-4 h-4 mr-2 fill-current" /> Play
-                  </Button>
-                  <Button variant="outline" onClick={handleResetAnimation} disabled={!isPlaying} className="px-3" title="Reset Animation">
-                    <RotateCcw className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-6 pt-4 border-t border-border pb-8">
-            <Label className="text-[10px] font-black uppercase text-muted-foreground">5. Canvas & Background</Label>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
-                  Transparent Background
-                </Label>
-                <Switch checked={transparent} onCheckedChange={setTransparent} />
-              </div>
-
-              {!transparent && (
-                <div className="flex items-center gap-3">
-                  <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
-                    <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                    {!transparent && (
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
+                          <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                        </div>
+                        <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
+                      </div>
+                    )}
                   </div>
-                  <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
-                </div>
-              )}
-            </div>
 
-            {!animEnabled && (
-              <div className="space-y-3 pt-2">
-                <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
-                <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
-              </div>
-            )}
+                  {!animEnabled && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
+                      <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
+                    </div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+
+            </Accordion>
           </div>
         </aside>
 
+        {/* Main Canvas Area */}
         <main 
           ref={mainAreaRef}
           className="flex-1 relative flex items-center justify-center bg-muted/20 overflow-hidden"
