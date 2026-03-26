@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,8 +15,27 @@ const Index = () => {
   const [deviceScale, setDeviceScale] = useState(60);
   const [dropShadow, setDropShadow] = useState(30);
   const [exporting, setExporting] = useState(false);
+  const [previewScale, setPreviewScale] = useState(0.5);
+  
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mainAreaRef = useRef<HTMLElement>(null);
+
+  // Dynamically scale the canvas so it always fits perfectly in the center of the available space
+  useEffect(() => {
+    const calculateScale = () => {
+      if (!mainAreaRef.current) return;
+      const { clientWidth, clientHeight } = mainAreaRef.current;
+      // Add a small 40px buffer margin around the canvas
+      const scaleX = (clientWidth - 80) / CANVAS_WIDTH;
+      const scaleY = (clientHeight - 80) / CANVAS_HEIGHT;
+      setPreviewScale(Math.min(scaleX, scaleY));
+    };
+
+    calculateScale();
+    window.addEventListener("resize", calculateScale);
+    return () => window.removeEventListener("resize", calculateScale);
+  }, []);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -30,7 +49,6 @@ const Index = () => {
     if (!canvasRef.current) return;
     setExporting(true);
     try {
-      // High-resolution export
       const dataUrl = await toPng(canvasRef.current, { pixelRatio: 2, cacheBust: true });
       const link = document.createElement("a");
       link.download = `mockup-${device}.png`;
@@ -43,11 +61,10 @@ const Index = () => {
     }
   }, [device]);
 
-  const previewScale = Math.min(1, 800 / CANVAS_WIDTH, 700 / CANVAS_HEIGHT);
-
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b bg-card px-6 py-4">
+    // Strictly lock the container to the viewport height to prevent unwanted page scrolling
+    <div className="h-screen w-full bg-background flex flex-col overflow-hidden">
+      <header className="border-b bg-card px-6 py-4 shrink-0 z-10 relative">
         <div className="max-w-[1600px] mx-auto flex items-center gap-3">
           <div className="bg-primary p-2 rounded-lg">
             <ImageIcon className="w-5 h-5 text-primary-foreground" />
@@ -56,11 +73,11 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      {/* min-h-0 is essential here to prevent flex children from blowing out the bounds */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative">
+        
         {/* Sidebar */}
-        <aside className="w-full lg:w-[320px] border-r bg-card p-6 space-y-8 overflow-y-auto">
-          
-          {/* Action Group: Upload & Export */}
+        <aside className="w-full lg:w-[320px] border-r bg-card p-6 space-y-8 overflow-y-auto shrink-0 z-10 relative">
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Manage Asset</Label>
@@ -69,8 +86,6 @@ const Index = () => {
                 <Upload className="mr-2 w-4 h-4" /> {image ? "Change Image" : "Upload Screenshot"}
               </Button>
             </div>
-
-            {/* Export button placed directly below the upload button */}
             <Button 
               onClick={handleExport} 
               disabled={!image || exporting} 
@@ -81,7 +96,6 @@ const Index = () => {
             </Button>
           </div>
 
-          {/* Device Selection */}
           <div className="space-y-4">
             <Label className="text-[10px] font-black uppercase text-muted-foreground">2. Select Frame</Label>
             <div className="grid grid-cols-1 gap-2">
@@ -106,10 +120,9 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Canvas Controls */}
-          <div className="space-y-6 pt-4 border-t">
+          <div className="space-y-6 pt-4 border-t border-border">
             <div className="space-y-3">
-              <div className="flex justify-between"><Label>Scale</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
+              <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
               <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
             </div>
             <div className="space-y-3">
@@ -119,24 +132,41 @@ const Index = () => {
           </div>
         </aside>
 
-        {/* Main Canvas Area */}
-        <main className="flex-1 bg-muted/10 flex items-center justify-center p-10 overflow-auto">
+        {/* Main Canvas Area - Strictly hidden overflow to maintain dead-center alignment */}
+        <main 
+          ref={mainAreaRef}
+          className="flex-1 relative flex items-center justify-center bg-muted/20 overflow-hidden"
+        >
+          {/* Background grid decoupled from scaled canvas */}
           <div 
-            ref={canvasRef}
-            className="flex items-center justify-center relative shadow-2xl bg-white"
+            className="absolute inset-0 pointer-events-none opacity-50"
+            style={{
+              backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)",
+              backgroundSize: "24px 24px"
+            }}
+          />
+
+          {/* Scaled Wrapper: Visually shrinks the 1920x1080 canvas to fit perfectly on the monitor */}
+          <div
+            className="flex items-center justify-center origin-center"
             style={{
               width: CANVAS_WIDTH,
               height: CANVAS_HEIGHT,
               transform: `scale(${previewScale})`,
-              backgroundImage: "radial-gradient(#e5e7eb 1px, transparent 1px)",
-              backgroundSize: "20px 20px"
             }}
           >
-            <div style={{ transform: `scale(${deviceScale / 100})` }}>
-              <DeviceFrame device={device} image={image} dropShadow={dropShadow} />
+            {/* The Actual Exportable Canvas */}
+            <div 
+              ref={canvasRef}
+              className="w-full h-full flex items-center justify-center relative bg-white shadow-xl overflow-hidden"
+            >
+              <div style={{ transform: `scale(${deviceScale / 100})` }}>
+                <DeviceFrame device={device} image={image} dropShadow={dropShadow} />
+              </div>
             </div>
           </div>
         </main>
+
       </div>
     </div>
   );

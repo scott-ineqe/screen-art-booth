@@ -1,6 +1,7 @@
 import React from "react";
 
-export type DeviceType = "iphone16pro" | "iphone16" | "ipadpro13" | "ipadair13" | "macbook14" | "macbook16";
+// 1. Properly defined types mapping perfectly to the configs
+export type DeviceType = "iphone17" | "ipad-air" | "macbook-pro-16";
 
 interface DeviceConfig {
   label: string;
@@ -18,26 +19,27 @@ interface DeviceConfig {
 const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
   "iphone17": {
     label: "iPhone 17",
-    localPath: "/frames/iphone-17.png",
+    frameUrl: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
-    screenArea: { top: "2.4%", left: "5.4%", width: "89.2%", height: "95.2%", borderRadius: "42px" }
+    screenArea: { top: "2.3%", left: "4.8%", width: "90.4%", height: "95.4%", borderRadius: "44px" }
   },
   "ipad-air": {
     label: "iPad Air",
-    localPath: "/frames/ipad-air.png",
+    frameUrl: "/frames/ipad-air.png",
     aspectRatio: 2732 / 2048,
-    screenArea: { top: "4.2%", left: "4.2%", width: "91.6%", height: "91.6%", borderRadius: "12px" }
+    screenArea: { top: "3.8%", left: "3.8%", width: "92.4%", height: "92.4%", borderRadius: "14px" }
   },
   "macbook-pro-16": {
     label: "MacBook Pro 16",
-    localPath: "/frames/macbook-pro-16.png",
+    frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { top: "5.1%", left: "9.6%", width: "80.8%", height: "83.8%", borderRadius: "4px" }
+    screenArea: { top: "4.8%", left: "9.2%", width: "81.6%", height: "84.4%", borderRadius: "4px" }
   }
 };
 
 const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShadow: number }> = ({ device, image, dropShadow }) => {
-  const config = DEVICE_CONFIGS[device] || DEVICE_CONFIGS.iphone16pro;
+  // Safe fallback specifically matching the valid keys
+  const config = DEVICE_CONFIGS[device] || DEVICE_CONFIGS["iphone17"];
   
   return (
     <div 
@@ -48,14 +50,14 @@ const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShad
         filter: dropShadow > 0 ? `drop-shadow(0 ${15 + dropShadow * 0.5}px ${30 + dropShadow * 1.5}px rgba(0,0,0,${0.25 + dropShadow * 0.01}))` : undefined,
       }}
     >
-      {/* Actual Device Photo (PNG) */}
+      {/* Device PNG Frame */}
       <img 
         src={config.frameUrl} 
         alt={config.label} 
         className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain"
       />
 
-      {/* Screen Content Container - Now using object-fill to prevent gaps */}
+      {/* Screen Area */}
       <div 
         className="absolute z-10 overflow-hidden bg-black"
         style={{
@@ -67,15 +69,16 @@ const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShad
         }}
       >
         {image ? (
+          // Object-cover ensures the image fills the space proportionally without stretching
           <img 
             src={image} 
             alt="Mockup content" 
-            className="w-full h-full object-fill" // Changed from object-cover to object-fill
+            className="w-full h-full object-cover" 
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-muted/20">
             <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-40">
-              Upload Screenshot
+              Upload Asset
             </span>
           </div>
         )}
