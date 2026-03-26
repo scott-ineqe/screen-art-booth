@@ -22,10 +22,10 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     aspectRatio: 1179 / 2556,
     // Expanded slightly to bleed under the bezel
     screenArea: { 
-      top: "2%", 
-      left: "2%", 
-      width: "95%", 
-      height: "100%", 
+      top: "3.9%", 
+      left: "4.1%", 
+      width: "93.9%", 
+      height: "92.2", 
       borderRadius: "44px" 
     }
   },
@@ -35,11 +35,11 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     aspectRatio: 2732 / 2048,
     // Expanded slightly to bleed under the bezel
     screenArea: { 
-      top: "3.2%", 
-      left: "3.2%", 
-      width: "93.6%", 
-      height: "93.6%", 
-      borderRadius: "14px" 
+      top: "7.7%", 
+      left: "4.3%", 
+      width: "91.5%", 
+      height: "84.7%", 
+      borderRadius: "9.7px" 
     }
   },
   "macbook-pro-16": {
@@ -48,11 +48,11 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     aspectRatio: 3456 / 2234,
     // Expanded slightly to bleed under the bezel (bottom margin kept larger for the physical hinge)
     screenArea: { 
-      top: "4.0%", 
-      left: "8.5%", 
-      width: "83.0%", 
-      height: "85.5%", 
-      borderRadius: "4px" 
+      top: "6.3%", 
+      left: "9.3%", 
+      width: "81.4%", 
+      height: "81.48%", 
+      borderRadius: "1px" 
     }
   }
 };
