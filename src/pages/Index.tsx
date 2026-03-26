@@ -481,6 +481,37 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
+            {/* Canvas & Background */}
+            <AccordionItem value="canvas" className="border-b-0 mb-8 bg-muted/20 p-4 rounded-xl border">
+              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
+                Canvas Options
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
+                    Transparent Background
+                  </Label>
+                  <Switch checked={transparent} onCheckedChange={setTransparent} />
+                </div>
+
+                {!transparent && (
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
+                      <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                    </div>
+                    <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
+                  </div>
+                )}
+
+                {!animEnabled && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
+                    <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
+                  </div>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+
             {/* Lighting & Shadows */}
             <AccordionItem value="lighting" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
@@ -637,37 +668,6 @@ const Index = () => {
                         <RotateCcw className="w-4 h-4" />
                       </Button>
                     </div>
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Canvas & Background */}
-            <AccordionItem value="canvas" className="border-b-0 mb-8 bg-muted/20 p-4 rounded-xl border">
-              <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
-                Canvas Options
-              </AccordionTrigger>
-              <AccordionContent className="space-y-4 pb-4 pt-2 px-2 -mx-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
-                    Transparent Background
-                  </Label>
-                  <Switch checked={transparent} onCheckedChange={setTransparent} />
-                </div>
-
-                {!transparent && (
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
-                      <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
-                    </div>
-                    <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="#FFFFFF" className="font-mono uppercase h-10" maxLength={7} />
-                  </div>
-                )}
-
-                {!animEnabled && (
-                  <div className="space-y-3 pt-4 border-t">
-                    <div className="flex justify-between"><Label>Scale Inside Canvas</Label><span className="text-xs font-mono">{deviceScale}%</span></div>
-                    <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
                   </div>
                 )}
               </AccordionContent>
