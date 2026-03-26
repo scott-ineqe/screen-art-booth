@@ -17,6 +17,8 @@ const Index = () => {
   const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
   const [deviceScale, setDeviceScale] = useState(50);
+  const [dropShadow, setDropShadow] = useState(0);
+  const [innerGlow, setInnerGlow] = useState(0);
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -166,6 +168,22 @@ const Index = () => {
             )}
           </div>
 
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drop Shadow</Label>
+              <span className="text-xs text-muted-foreground tabular-nums">{dropShadow}%</span>
+            </div>
+            <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} min={0} max={100} step={1} />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Inner Glow</Label>
+              <span className="text-xs text-muted-foreground tabular-nums">{innerGlow}%</span>
+            </div>
+            <Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} min={0} max={100} step={1} />
+          </div>
+
           <div className="rounded-xl border border-border p-3 space-y-1">
             <p className="text-xs text-muted-foreground">Export size</p>
             <p className="text-sm font-medium text-foreground tabular-nums">{CANVAS_WIDTH} × {CANVAS_HEIGHT}px</p>
@@ -192,7 +210,7 @@ const Index = () => {
                   className="flex items-center justify-center"
                   style={{ transform: `scale(${scaleFactor})`, transformOrigin: "center" }}
                 >
-                  <DeviceFrame device={device} image={image} />
+                  <DeviceFrame device={device} image={image} dropShadow={dropShadow} innerGlow={innerGlow} />
                 </div>
               </div>
             </div>
