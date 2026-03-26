@@ -25,7 +25,6 @@ import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Pla
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
 type CanvasRatio = "16:9" | "9:16" | "1:1";
 
-// Dynamically load the GIF encoder without bloating your local bundle
 const loadGifJs = async () => {
   if ((window as any).GIF) return;
   return new Promise((resolve, reject) => {
@@ -52,10 +51,8 @@ const Index = () => {
   const [innerGlow, setInnerGlow] = useState(0);
   const [innerGlowAngle, setInnerGlowAngle] = useState(0); 
 
-  // --- Controlled Accordion State ---
   const [openAccordions, setOpenAccordions] = useState<string[]>(["asset", "frame", "lighting", "canvas"]);
 
-  // --- Animation State ---
   const [animEnabled, setAnimEnabled] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [animDuration, setAnimDuration] = useState(2); 
@@ -76,7 +73,6 @@ const Index = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [transparent, setTransparent] = useState(false);
 
-  // --- Canvas Dimensions State ---
   const [canvasRatio, setCanvasRatio] = useState<CanvasRatio>("16:9");
 
   const canvasDimensions = useMemo(() => {
@@ -88,7 +84,6 @@ const Index = () => {
   const CANVAS_WIDTH = canvasDimensions.width;
   const CANVAS_HEIGHT = canvasDimensions.height;
 
-  // --- Background Options State ---
   const [bgType, setBgType] = useState<"solid" | "gradient" | "image">("solid");
   const [bgColor, setBgColor] = useState("#ffffff");
   const [bgGradientType, setBgGradientType] = useState<"linear" | "radial">("linear");
@@ -104,16 +99,16 @@ const Index = () => {
   const animTargetRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
-  const mainAreaRef = useRef<HTMLElement>(null);
+  const mainAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const calculateScale = () => {
       if (!mainAreaRef.current) return;
-      const { clientWidth, clientHeight } = mainAreaRef.current;
-      // Smart padding: Less padding on mobile to maximize canvas visibility
-      const padding = window.innerWidth < 1024 ? 32 : 80;
-      const scaleX = (clientWidth - padding) / CANVAS_WIDTH;
-      const scaleY = (clientHeight - padding) / CANVAS_HEIGHT;
+      // Using bounding client rect ignores any internal scale overflows
+      const { width, height } = mainAreaRef.current.getBoundingClientRect();
+      const padding = window.innerWidth < 1024 ? 40 : 80;
+      const scaleX = (width - padding) / CANVAS_WIDTH;
+      const scaleY = (height - padding) / CANVAS_HEIGHT;
       setPreviewScale(Math.min(scaleX, scaleY));
     };
 
@@ -423,21 +418,27 @@ const Index = () => {
   const activeY = animEnabled ? (isPlaying ? animEndY : animStartY) : 0;
 
   return (
-    // 100dvh prevents clipping caused by dynamic mobile URL bars
     <div className="h-[100dvh] w-full bg-background flex flex-col overflow-hidden">
-      <header className="border-b bg-card px-6 py-4 shrink-0 z-10 relative">
-        <div className="max-w-[1600px] mx-auto flex items-center gap-3">
+      {/* Header with strictly sized hotdog image to prevent stretching */}
+      <header className="border-b bg-card px-6 py-4 shrink-0 z-10 relative flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <div className="bg-primary p-2 rounded-lg">
             <ImageIcon className="w-5 h-5 text-primary-foreground" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">Screen Booth</h1>
         </div>
+        <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold">
+          <span>&copy; {new Date().getFullYear()} Screen Booth</span>
+          <img 
+            src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f32d.png" 
+            alt="Hotdog" 
+            className="w-5 h-5 object-contain" 
+          />
+        </div>
       </header>
 
-      {/* flex-col-reverse pushes the sidebar to the bottom on mobile screens, Canvas on top */}
       <div className="flex-1 flex flex-col-reverse lg:flex-row min-h-0 relative">
         
-        {/* Sidebar */}
         <aside className="w-full lg:w-[360px] flex-1 lg:flex-none border-t lg:border-t-0 lg:border-r bg-card p-4 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
           
           <Accordion 
@@ -447,10 +448,9 @@ const Index = () => {
               setOpenAccordions(val);
               setAnimEnabled(val.includes("animation"));
             }} 
-            className="w-full pb-8 lg:pb-0" // Extra padding bottom for mobile scrolling
+            className="w-full pb-8 lg:pb-0" 
           >
             
-            {/* Manage Asset */}
             <AccordionItem value="asset" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
                 Manage Asset
@@ -504,7 +504,6 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Select Frame */}
             <AccordionItem value="frame" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
                 Select Frame
@@ -531,7 +530,6 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Lighting & Shadows */}
             <AccordionItem value="lighting" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
                 Lighting & Shadows
@@ -576,7 +574,6 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Animation Config */}
             <AccordionItem value="animation" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <div className="flex items-center justify-between">
                 <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4 focus:outline-none flex-1 text-left [&>svg]:hidden">
@@ -597,7 +594,6 @@ const Index = () => {
                 {animEnabled && (
                   <div className="space-y-6 pt-4 animate-in fade-in zoom-in-95 duration-200">
                     
-                    {/* Scale */}
                     <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
                       <Label className="text-xs font-bold border-b pb-1 w-full flex">Scale</Label>
                       <div className="space-y-3">
@@ -610,7 +606,6 @@ const Index = () => {
                       </div>
                     </div>
 
-                    {/* Position */}
                     <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
                       <div className="flex items-center justify-between border-b pb-1 w-full">
                         <Label className="text-xs font-bold">Position Offset</Label>
@@ -636,7 +631,6 @@ const Index = () => {
                       </div>
                     </div>
 
-                    {/* Rotation */}
                     <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
                       <Label className="text-xs font-bold border-b pb-1 w-full flex">Rotation</Label>
                       <div className="space-y-3">
@@ -656,7 +650,6 @@ const Index = () => {
                       </div>
                     </div>
 
-                    {/* Timing */}
                     <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
                       <div className="space-y-3">
                         <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Duration</Label><span className="text-[10px] font-mono">{animDuration}s</span></div>
@@ -692,7 +685,6 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
 
-            {/* Canvas & Background Options */}
             <AccordionItem value="canvas" className="border-b-0 mb-8 bg-muted/20 p-4 rounded-xl border">
               <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
                 Canvas Options
@@ -807,10 +799,12 @@ const Index = () => {
           </Accordion>
         </aside>
 
-        {/* Main Canvas Area */}
+        {/* IMPORTANT FIX: We remove the flex-layout from this wrapper completely and make it an absolute bounding box. 
+          This prevents the inner 1920x1080 canvas from stretching the browser's DOM flow on smaller screens 
+        */}
         <main 
           ref={mainAreaRef}
-          className="w-full h-[45vh] min-h-[300px] lg:h-auto lg:flex-1 relative flex items-center justify-center bg-muted/20 overflow-hidden shrink-0"
+          className="w-full h-[45vh] min-h-[300px] lg:h-auto lg:flex-1 relative bg-muted/20 overflow-hidden shrink-0"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -828,32 +822,35 @@ const Index = () => {
 
           <div className="absolute inset-0 pointer-events-none opacity-50" style={{ backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
 
-          <div
-            className="flex items-center justify-center origin-center shadow-2xl transition-all duration-300"
-            style={{
-              width: CANVAS_WIDTH,
-              height: CANVAS_HEIGHT,
-              transform: `scale(${previewScale})`,
-              ...(transparent && { backgroundImage: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%)", backgroundSize: "40px 40px" })
-            }}
-          >
-            <div 
-              ref={canvasRef}
-              className="w-full h-full flex items-center justify-center relative overflow-hidden transition-all duration-300"
-              style={getCanvasBackgroundStyles()}
+          {/* Absolute centering wrapper solves the dimension resizing bug entirely */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div
+              className="origin-center shadow-2xl transition-all duration-300 pointer-events-auto"
+              style={{
+                width: CANVAS_WIDTH,
+                height: CANVAS_HEIGHT,
+                transform: `scale(${previewScale})`,
+                ...(transparent && { backgroundImage: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%)", backgroundSize: "40px 40px" })
+              }}
             >
               <div 
-                ref={animTargetRef}
-                style={{ 
-                  transform: `translate(${activeX}px, ${activeY}px) scale(${activeScale / 100}) rotate(${activeRot}deg)`,
-                  transitionProperty: 'transform',
-                  transitionDuration: animEnabled && isPlaying ? `${animDuration}s` : '0s',
-                  transitionTimingFunction: animEasing,
-                }}
+                ref={canvasRef}
+                className="w-full h-full flex items-center justify-center relative overflow-hidden transition-all duration-300"
+                style={getCanvasBackgroundStyles()}
               >
-                <DeviceFrame 
-                  device={device} image={image} dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} 
-                />
+                <div 
+                  ref={animTargetRef}
+                  style={{ 
+                    transform: `translate(${activeX}px, ${activeY}px) scale(${activeScale / 100}) rotate(${activeRot}deg)`,
+                    transitionProperty: 'transform',
+                    transitionDuration: animEnabled && isPlaying ? `${animDuration}s` : '0s',
+                    transitionTimingFunction: animEasing,
+                  }}
+                >
+                  <DeviceFrame 
+                    device={device} image={image} dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} 
+                  />
+                </div>
               </div>
             </div>
           </div>
