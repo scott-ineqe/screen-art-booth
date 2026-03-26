@@ -21,7 +21,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "iPhone 17",
     frameUrl: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
-    screenArea: { top: "2.3%", left: "4.8%", width: "88%", height: "95.4%", borderRadius: "44px" }
+    screenArea: { top: "5%", left: "5%", right: "5%", height: "95.4%", borderRadius: "44px" }
   },
   "ipad-air": {
     label: "iPad Air",
@@ -33,7 +33,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "MacBook Pro 16",
     frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { top: "4.8%", left: "8%", width: "81.6%", height: "84.4%", borderRadius: "4px" }
+    screenArea: { top: "4.8%", left: "9.2%", width: "81.6%", height: "84.4%", borderRadius: "4px" }
   }
 };
 
