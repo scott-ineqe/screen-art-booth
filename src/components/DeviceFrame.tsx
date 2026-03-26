@@ -16,77 +16,23 @@ interface DeviceConfig {
 }
 
 const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
-  iphone16pro: {
-    label: "iPhone 16 Pro",
-    frameUrl: "/frames/iphone-16-pro.png", // Ensure these match your local filenames
-    aspectRatio: 1206 / 2622,
-    screenArea: { 
-      top: "1.9%", 
-      left: "4.2%", 
-      width: "91.6%", 
-      height: "96.2%", 
-      borderRadius: "50px" 
-    }
-  },
-  iphone16: {
-    label: "iPhone 16",
-    frameUrl: "/frames/iphone-16.png",
+  "iphone17": {
+    label: "iPhone 17",
+    localPath: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
-    screenArea: { 
-      top: "2.3%", 
-      left: "4.8%", 
-      width: "90.4%", 
-      height: "95.4%", 
-      borderRadius: "44px" 
-    }
+    screenArea: { top: "2.4%", left: "5.4%", width: "89.2%", height: "95.2%", borderRadius: "42px" }
   },
-  ipadpro13: {
-    label: "iPad Pro 13 (M4)",
-    frameUrl: "/frames/ipad-pro-13.png",
-    aspectRatio: 2752 / 2064,
-    screenArea: { 
-      top: "3.2%", 
-      left: "3.2%", 
-      width: "93.6%", 
-      height: "93.6%", 
-      borderRadius: "18px" 
-    }
-  },
-  ipadair13: {
-    label: "iPad Air 13 (M2)",
-    frameUrl: "/frames/ipad-air.png",
+  "ipad-air": {
+    label: "iPad Air",
+    localPath: "/frames/ipad-air.png",
     aspectRatio: 2732 / 2048,
-    screenArea: { 
-      top: "3.8%", 
-      left: "3.8%", 
-      width: "92.4%", 
-      height: "92.4%", 
-      borderRadius: "14px" 
-    }
+    screenArea: { top: "4.2%", left: "4.2%", width: "91.6%", height: "91.6%", borderRadius: "12px" }
   },
-  macbook14: {
-    label: "MacBook Pro 14",
-    frameUrl: "/frames/macbook-14.png",
-    aspectRatio: 3024 / 1964,
-    screenArea: { 
-      top: "5.2%", 
-      left: "9.8%", 
-      width: "80.4%", 
-      height: "82.6%", 
-      borderRadius: "4px" 
-    }
-  },
-  macbook16: {
+  "macbook-pro-16": {
     label: "MacBook Pro 16",
-    frameUrl: "/frames/macbook-pro-16.png",
+    localPath: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { 
-      top: "4.8%", 
-      left: "9.2%", 
-      width: "81.6%", 
-      height: "84.4%", 
-      borderRadius: "4px" 
-    }
+    screenArea: { top: "5.1%", left: "9.6%", width: "80.8%", height: "83.8%", borderRadius: "4px" }
   }
 };
 
