@@ -1,6 +1,5 @@
 import React from "react";
 
-// 1. Properly defined types mapping perfectly to the configs
 export type DeviceType = "iphone17" | "ipad-air" | "macbook-pro-16";
 
 interface DeviceConfig {
@@ -21,24 +20,44 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "iPhone 17",
     frameUrl: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
-    screenArea: { top: "4.5%", left: "4.5%", width: "90%", height: "95%", borderRadius: "44px" }
+    // Expanded slightly to bleed under the bezel
+    screenArea: { 
+      top: "1.8%", 
+      left: "4.0%", 
+      width: "92%", 
+      height: "96.4%", 
+      borderRadius: "44px" 
+    }
   },
   "ipad-air": {
     label: "iPad Air",
     frameUrl: "/frames/ipad-air.png",
     aspectRatio: 2732 / 2048,
-    screenArea: { top: "3.8%", left: "3.8%", width: "92.4%", height: "92.4%", borderRadius: "14px" }
+    // Expanded slightly to bleed under the bezel
+    screenArea: { 
+      top: "3.2%", 
+      left: "3.2%", 
+      width: "93.6%", 
+      height: "93.6%", 
+      borderRadius: "14px" 
+    }
   },
   "macbook-pro-16": {
     label: "MacBook Pro 16",
     frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { top: "4.8%", left: "9.2%", width: "81.6%", height: "84.4%", borderRadius: "4px" }
+    // Expanded slightly to bleed under the bezel (bottom margin kept larger for the physical hinge)
+    screenArea: { 
+      top: "4.0%", 
+      left: "8.5%", 
+      width: "83.0%", 
+      height: "85.5%", 
+      borderRadius: "4px" 
+    }
   }
 };
 
 const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShadow: number }> = ({ device, image, dropShadow }) => {
-  // Safe fallback specifically matching the valid keys
   const config = DEVICE_CONFIGS[device] || DEVICE_CONFIGS["iphone17"];
   
   return (
@@ -50,14 +69,15 @@ const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShad
         filter: dropShadow > 0 ? `drop-shadow(0 ${15 + dropShadow * 0.5}px ${30 + dropShadow * 1.5}px rgba(0,0,0,${0.25 + dropShadow * 0.01}))` : undefined,
       }}
     >
-      {/* Device PNG Frame */}
+      {/* 1. Device PNG Frame (Front Layer) */}
+      {/* This sits on top of the screen (z-30) so the solid bezels hide any slight image overlap */}
       <img 
         src={config.frameUrl} 
         alt={config.label} 
         className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain"
       />
 
-      {/* Screen Area */}
+      {/* 2. Screen Area (Back Layer) */}
       <div 
         className="absolute z-10 overflow-hidden bg-black"
         style={{
@@ -69,10 +89,10 @@ const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShad
         }}
       >
         {image ? (
-          // Object-cover ensures the image fills the space proportionally without stretching
           <img 
             src={image} 
             alt="Mockup content" 
+            // object-cover ensures the image fills the entire bleed area symmetrically
             className="w-full h-full object-cover" 
           />
         ) : (
