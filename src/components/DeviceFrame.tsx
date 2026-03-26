@@ -1,82 +1,72 @@
 import React from "react";
 
-export type DeviceType = "iphone16pro" | "iphone16" | "ipadpro13" | "ipadair13" | "macbook14" | "macbook16";
+// Updated to match the latest devices and your uploaded files
+export type DeviceType = "iphone17" | "ipad-air" | "macbook-pro-16";
 
 interface DeviceConfig {
   label: string;
-  frameUrl: string; // URL to the transparent PNG of the device
+  localPath: string;
   aspectRatio: number;
+  // Percentage coordinates to place the screen perfectly within the frame
   screenArea: {
-    top: string;    // % from top
-    left: string;   // % from left
-    width: string;  // % of total width
-    height: string; // % of total height
+    top: string;
+    left: string;
+    width: string;
+    height: string;
     borderRadius: string;
   };
 }
 
 const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
-  iphone16pro: {
-    label: "iPhone 16 Pro",
-    frameUrl: "https://your-cdn.com/iphone16pro_frame.png",
-    aspectRatio: 1206 / 2622,
-    screenArea: { top: "2.2%", left: "4.5%", width: "91%", height: "95.6%", borderRadius: "46px" }
-  },
-  iphone16: {
-    label: "iPhone 16",
-    frameUrl: "https://your-cdn.com/iphone16_frame.png",
+  "iphone17": {
+    label: "iPhone 17",
+    localPath: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
-    screenArea: { top: "2.5%", left: "5.2%", width: "89.6%", height: "95%", borderRadius: "42px" }
+    screenArea: { top: "2.4%", left: "5.4%", width: "89.2%", height: "95.2%", borderRadius: "42px" }
   },
-  ipadpro13: {
-    label: "iPad Pro 13 (M4)",
-    frameUrl: "https://your-cdn.com/ipadpro13_frame.png",
-    aspectRatio: 2752 / 2064,
-    screenArea: { top: "3.5%", left: "3.5%", width: "93%", height: "93%", borderRadius: "16px" }
-  },
-  ipadair13: {
-    label: "iPad Air 13 (M2)",
-    frameUrl: "https://your-cdn.com/ipadair13_frame.png",
+  "ipad-air": {
+    label: "iPad Air",
+    localPath: "/frames/ipad-air.png",
     aspectRatio: 2732 / 2048,
     screenArea: { top: "4.2%", left: "4.2%", width: "91.6%", height: "91.6%", borderRadius: "12px" }
   },
-  macbook14: {
-    label: "MacBook Pro 14",
-    frameUrl: "https://your-cdn.com/macbook14_frame.png",
-    aspectRatio: 3024 / 1964,
-    screenArea: { top: "5.5%", left: "10.2%", width: "79.6%", height: "82%", borderRadius: "4px" }
-  },
-  macbook16: {
+  "macbook-pro-16": {
     label: "MacBook Pro 16",
-    frameUrl: "https://your-cdn.com/macbook16_frame.png",
+    localPath: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { top: "5%", left: "9.5%", width: "81%", height: "84%", borderRadius: "4px" }
+    screenArea: { top: "5.1%", left: "9.6%", width: "80.8%", height: "83.8%", borderRadius: "4px" }
   }
 };
 
-const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShadow: number }> = ({ device, image, dropShadow }) => {
+interface DeviceFrameProps {
+  device: DeviceType;
+  image: string | null;
+  dropShadow?: number;
+}
+
+const DeviceFrame: React.FC<DeviceFrameProps> = ({ device, image, dropShadow = 0 }) => {
   const config = DEVICE_CONFIGS[device];
   
   return (
     <div 
       className="relative transition-all duration-300"
       style={{
-        width: device.includes("macbook") ? 800 : (device.includes("ipad") ? 550 : 320),
+        // Responsive sizing based on device category
+        width: device.includes("macbook") ? 850 : (device.includes("ipad") ? 600 : 340),
         aspectRatio: `${config.aspectRatio}`,
         filter: dropShadow > 0 ? `drop-shadow(0 ${10 + dropShadow * 0.5}px ${25 + dropShadow * 1.5}px rgba(0,0,0,${0.2 + dropShadow * 0.01}))` : undefined,
       }}
     >
-      {/* Actual Device Photo (PNG) */}
+      {/* 1. The Physical Device Frame (Actual Photo) */}
       <img 
-        src={config.frameUrl} 
+        src={config.localPath} 
         alt={config.label} 
         className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain"
-        crossOrigin="anonymous"
       />
 
-      {/* Screen Content Container */}
+      {/* 2. The Interactive Screen Container */}
       <div 
-        className="absolute z-10 overflow-hidden bg-black"
+        className="absolute z-10 overflow-hidden bg-black flex items-center justify-center"
         style={{
           top: config.screenArea.top,
           left: config.screenArea.left,
@@ -86,10 +76,12 @@ const DeviceFrame: React.FC<{ device: DeviceType; image: string | null; dropShad
         }}
       >
         {image ? (
-          <img src={image} alt="Mockup" className="w-full h-full object-cover" />
+          <img src={image} alt="Mockup Content" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted/20">
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Upload Image</span>
+          <div className="w-full h-full flex flex-col items-center justify-center bg-muted/20 p-4 text-center">
+            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-50">
+              No Screenshot Uploaded
+            </span>
           </div>
         )}
       </div>
