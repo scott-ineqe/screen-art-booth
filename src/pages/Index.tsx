@@ -1,18 +1,16 @@
 import React, { useState, useRef, useCallback } from "react";
 import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon } from "lucide-react";
 
-// Fixed 16:9 canvas
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
 
 const Index = () => {
-  const [device, setDevice] = useState<DeviceType>("iphone");
+  const [device, setDevice] = useState<DeviceType>("iphone16pro");
   const [image, setImage] = useState<string | null>(null);
   const [bgColor, setBgColor] = useState("#ffffff");
   const [transparent, setTransparent] = useState(false);
@@ -22,8 +20,6 @@ const Index = () => {
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const scaleFactor = deviceScale / 100;
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -37,195 +33,97 @@ const Index = () => {
     if (!canvasRef.current) return;
     setExporting(true);
     try {
-      const el = canvasRef.current;
-      const origBg = el.style.backgroundImage;
-      if (transparent) {
-        el.style.backgroundImage = "none";
-        el.style.backgroundColor = "transparent";
-      }
-      const dataUrl = await toPng(el, { pixelRatio: 2, cacheBust: true });
-      if (transparent) {
-        el.style.backgroundImage = origBg;
-      }
+      const dataUrl = await toPng(canvasRef.current, { pixelRatio: 2, cacheBust: true });
       const link = document.createElement("a");
-      link.download = `mockup-${device}-${CANVAS_WIDTH}x${CANVAS_HEIGHT}.png`;
+      link.download = `mockup-${device}.png`;
       link.href = dataUrl;
       link.click();
-    } catch (err) {
-      console.error("Export failed:", err);
     } finally {
       setExporting(false);
     }
-  }, [device, transparent]);
-
-  const deviceIcons = {
-    iphone: <Smartphone className="w-4 h-4" />,
-    ipad: <Tablet className="w-4 h-4" />,
-    macbook: <Laptop className="w-4 h-4" />,
-  };
+  }, [device]);
 
   const previewScale = Math.min(1, 800 / CANVAS_WIDTH, 700 / CANVAS_HEIGHT);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border bg-card px-6 py-4">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <ImageIcon className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-foreground tracking-tight">Device Mockup</h1>
-              <p className="text-xs text-muted-foreground">High-quality device frames for your screenshots</p>
-            </div>
-          </div>
+        <div className="max-w-[1600px] mx-auto flex items-center gap-3">
+          <ImageIcon className="w-6 h-6 text-primary" />
+          <h1 className="text-xl font-bold tracking-tight">Screen Booth</h1>
         </div>
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row">
-        <aside className="w-full lg:w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-6 space-y-6 shrink-0 overflow-y-auto">
-          {/* Screenshot and Export Actions Group */}
+        <aside className="w-full lg:w-[320px] border-r border-border bg-card p-6 space-y-8 overflow-y-auto">
+          {/* File Actions Group */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Screenshot</Label>
+              <Label className="text-xs font-bold uppercase text-muted-foreground">1. Asset</Label>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-              <Button variant="outline" className="w-full gap-2 h-11" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-4 h-4" />
-                {image ? "Replace image" : "Upload image"}
+              <Button variant="outline" className="w-full h-11" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 w-4 h-4" /> {image ? "Change Image" : "Upload Screenshot"}
               </Button>
             </div>
-
-            {/* Export Button moved below the Upload button */}
-            <Button 
-              onClick={handleExport} 
-              disabled={!image || exporting} 
-              className="w-full gap-2 h-11 shadow-sm"
-              variant="default"
-            >
-              <Download className="w-4 h-4" />
-              {exporting ? "Exporting…" : "Export PNG"}
+            {/* EXPORT BUTTON MOVED HERE */}
+            <Button onClick={handleExport} disabled={!image || exporting} className="w-full h-11">
+              <Download className="mr-2 w-4 h-4" /> {exporting ? "Exporting..." : "Export PNG"}
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Device</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["iphone", "ipad", "macbook"] as DeviceType[]).map((d) => (
+          {/* Device Selection Group */}
+          <div className="space-y-4">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">2. Device Selection</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: "iphone16pro", label: "iPhone 16 Pro", icon: <Smartphone className="w-4 h-4" /> },
+                { id: "iphone16", label: "iPhone 16", icon: <Smartphone className="w-4 h-4" /> },
+                { id: "ipadpro13", label: "iPad Pro 13", icon: <Tablet className="w-4 h-4" /> },
+                { id: "ipadair13", label: "iPad Air 13", icon: <Tablet className="w-4 h-4" /> },
+                { id: "macbook14", label: "MacBook Pro 14", icon: <Laptop className="w-4 h-4" /> },
+                { id: "macbook16", label: "MacBook Pro 16", icon: <Laptop className="w-4 h-4" /> },
+              ].map((d) => (
                 <button
-                  key={d}
-                  onClick={() => setDevice(d)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-medium transition-all ${
-                    device === d
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/30"
+                  key={d.id}
+                  onClick={() => setDevice(d.id as DeviceType)}
+                  className={`flex flex-col items-center p-3 rounded-lg border text-[10px] transition-all ${
+                    device === d.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted"
                   }`}
                 >
-                  {deviceIcons[d]}
-                  <span className="capitalize">{d === "macbook" ? "MacBook" : d === "iphone" ? "iPhone" : "iPad"}</span>
+                  {d.icon}
+                  <span className="mt-1 font-semibold">{d.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Device Size</Label>
-              <span className="text-xs text-muted-foreground tabular-nums">{deviceScale}%</span>
+          {/* Customization Group */}
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex justify-between"><Label>Scale</Label><span className="text-xs">{deviceScale}%</span></div>
+              <Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} />
             </div>
-            <Slider
-              value={[deviceScale]}
-              onValueChange={(v) => setDeviceScale(v[0])}
-              min={10}
-              max={150}
-              step={1}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Background</Label>
-            <button
-              onClick={() => setTransparent(!transparent)}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl border text-xs font-medium transition-all ${
-                transparent
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/30"
-              }`}
-            >
-              <div className="w-5 h-5 rounded border border-border overflow-hidden grid grid-cols-2 grid-rows-2 shrink-0">
-                <div style={{ background: "#fff" }} /><div style={{ background: "#ccc" }} />
-                <div style={{ background: "#ccc" }} /><div style={{ background: "#fff" }} />
-              </div>
-              Transparent
-            </button>
-            {!transparent && (
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={bgColor}
-                  onChange={(e) => setBgColor(e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent p-0.5"
-                />
-                <Input
-                  value={bgColor}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setBgColor(v);
-                  }}
-                  placeholder="#ffffff"
-                  className="flex-1 h-10 font-mono text-sm uppercase"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drop Shadow</Label>
-              <span className="text-xs text-muted-foreground tabular-nums">{dropShadow}%</span>
+            <div className="space-y-3">
+              <div className="flex justify-between"><Label>Drop Shadow</Label><span className="text-xs">{dropShadow}%</span></div>
+              <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} />
             </div>
-            <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} min={0} max={100} step={1} />
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Inner Glow</Label>
-              <span className="text-xs text-muted-foreground tabular-nums">{innerGlow}%</span>
-            </div>
-            <Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} min={0} max={100} step={1} />
-          </div>
-
-          <div className="rounded-xl border border-border p-3 space-y-1">
-            <p className="text-xs text-muted-foreground">Export size</p>
-            <p className="text-sm font-medium text-foreground tabular-nums">{CANVAS_WIDTH} × {CANVAS_HEIGHT}px</p>
           </div>
         </aside>
 
-        <main className="flex-1 overflow-auto p-6 lg:p-10 flex items-center justify-center bg-background">
-          <div className="relative">
-            <div style={{ width: CANVAS_WIDTH * previewScale, height: CANVAS_HEIGHT * previewScale }}>
-              <div
-                ref={canvasRef}
-                className="flex items-center justify-center origin-top-left"
-                style={{
-                  width: CANVAS_WIDTH,
-                  height: CANVAS_HEIGHT,
-                  transform: `scale(${previewScale})`,
-                  backgroundColor: transparent ? "transparent" : bgColor,
-                  backgroundImage: transparent
-                    ? "repeating-conic-gradient(#d4d4d4 0% 25%, transparent 0% 50%) 0 0 / 20px 20px"
-                    : "none",
-                }}
-              >
-                <div
-                  className="flex items-center justify-center"
-                  style={{ transform: `scale(${scaleFactor})`, transformOrigin: "center" }}
-                >
-                  <DeviceFrame device={device} image={image} dropShadow={dropShadow} innerGlow={innerGlow} />
-                </div>
-              </div>
-            </div>
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-muted-foreground tabular-nums">
-              {CANVAS_WIDTH} × {CANVAS_HEIGHT}
+        <main className="flex-1 bg-muted/20 flex items-center justify-center p-10 overflow-auto">
+          <div 
+            ref={canvasRef}
+            className="flex items-center justify-center relative shadow-2xl overflow-hidden"
+            style={{
+              width: CANVAS_WIDTH,
+              height: CANVAS_HEIGHT,
+              transform: `scale(${previewScale})`,
+              backgroundColor: transparent ? "transparent" : bgColor,
+              backgroundImage: transparent ? "repeating-conic-gradient(#d4d4d4 0% 25%, transparent 0% 50%) 0 0 / 20px 20px" : "none",
+            }}
+          >
+            <div style={{ transform: `scale(${deviceScale / 100})` }}>
+              <DeviceFrame device={device} image={image} dropShadow={dropShadow} innerGlow={innerGlow} />
             </div>
           </div>
         </main>
