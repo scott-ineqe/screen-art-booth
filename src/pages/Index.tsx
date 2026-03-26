@@ -79,21 +79,31 @@ const Index = () => {
               <p className="text-xs text-muted-foreground">Drop your screenshot into a realistic device frame</p>
             </div>
           </div>
-          <Button onClick={handleExport} disabled={!image || exporting} className="gap-2">
-            <Download className="w-4 h-4" />
-            {exporting ? "Exporting…" : "Export PNG"}
-          </Button>
+          {/* Export button removed from here to move to sidebar */}
         </div>
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row">
         <aside className="w-full lg:w-[320px] border-b lg:border-b-0 lg:border-r border-border bg-card p-6 space-y-6 shrink-0 overflow-y-auto">
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Screenshot</Label>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-            <Button variant="outline" className="w-full gap-2 h-11" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4" />
-              {image ? "Replace image" : "Upload image"}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Screenshot</Label>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+              <Button variant="outline" className="w-full gap-2 h-11" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-4 h-4" />
+                {image ? "Replace image" : "Upload image"}
+              </Button>
+            </div>
+
+            {/* Export button relocated here */}
+            <Button 
+              onClick={handleExport} 
+              disabled={!image || exporting} 
+              className="w-full gap-2 h-11"
+              variant="default"
+            >
+              <Download className="w-4 h-4" />
+              {exporting ? "Exporting…" : "Export PNG"}
             </Button>
           </div>
 
