@@ -50,21 +50,21 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/imac-24-inch.png",
     aspectRatio: 1920 / 1440, // Desktop monitor with a chin ratio
     defaultWidth: 1000, // Massive Desktop size
-    screenArea: { top: "2.9%", left: "13.6%", width: "72.5%", height: "64%", borderRadius: "1px" }
+    screenArea: { top: "2.8%", left: "7,84%", width: "84.42%", height: "63.4%", borderRadius: "1px" }
   },
   "samsung-galaxy-tab": {
     label: "Samsung Galaxy Tab",
     frameUrl: "/frames/samsung-galaxy-tab.png",
     aspectRatio: 2560 / 1600, // Landscape tablet ratio
     defaultWidth: 650, // Tablet size
-    screenArea: { top: "5.6%", left: "3.6%", width: "92.8%", height: "89.3%", borderRadius: "4px" }
+    screenArea: { top: "5.53%", left: "5.3%", width: "89.55%", height: "89.37%", borderRadius: "7.5px" }
   },
   "samsung-galaxy-phone": {
     label: "Samsung Galaxy Phone",
     frameUrl: "/frames/samsung-galaxy-phone.png",
     aspectRatio: 1080 / 2340, // Vertical phone ratio
     defaultWidth: 340, // Phone size
-    screenArea: { top: "1.59%", left: "35.73%", width: "28.3%", height: "96.48%", borderRadius: "9.3px" }
+    screenArea: { top: "1.42%", left: "2.6%", width: "94.1%", height: "96.6%", borderRadius: "26.3px" }
   }
 };
 
