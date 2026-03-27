@@ -20,7 +20,6 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "iPhone 17",
     frameUrl: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
-    // Expanded slightly to bleed under the bezel
     screenArea: { 
       top: "3.9%", 
       left: "4.1%", 
@@ -33,7 +32,6 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "iPad Air",
     frameUrl: "/frames/ipad-air.png",
     aspectRatio: 2732 / 2048,
-    // Expanded slightly to bleed under the bezel
     screenArea: { 
       top: "7.7%", 
       left: "4.3%", 
@@ -46,7 +44,42 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "MacBook Pro 16",
     frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    // Expanded slightly to bleed under the bezel (bottom margin kept larger for the physical hinge)
+    screenArea: { 
+      top: "6.3%", 
+      left: "9.3%", 
+      width: "81.4%", 
+      height: "81.48%", 
+      borderRadius: "1px" 
+    }
+  },
+  "imac-24-inch": {
+    label: "iMac 2021 24 inch",
+    frameUrl: "/frames/imac-24-inch.png",
+    aspectRatio: 3456 / 2234,
+    screenArea: { 
+      top: "6.3%", 
+      left: "9.3%", 
+      width: "81.4%", 
+      height: "81.48%", 
+      borderRadius: "1px" 
+    }
+  },
+  "samsung-galaxy-tab": {
+    label: "Samsung Galaxy Tab",
+    frameUrl: "/frames/samsung-galaxy-tab.png",
+    aspectRatio: 3456 / 2234,
+    screenArea: { 
+      top: "6.3%", 
+      left: "9.3%", 
+      width: "81.4%", 
+      height: "81.48%", 
+      borderRadius: "1px" 
+    }
+  },
+  "samsung-galaxy-phone": {
+    label: "Samsung Galaxy Phone",
+    frameUrl: "/frames/samsung-galaxy-phone.png",
+    aspectRatio: 3456 / 2234,
     screenArea: { 
       top: "6.3%", 
       left: "9.3%", 
