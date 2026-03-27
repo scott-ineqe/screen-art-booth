@@ -1,11 +1,19 @@
 import React from "react";
 
-export type DeviceType = "iphone17" | "ipad-air" | "macbook-pro-16";
+// 1. Added the new devices to the type definition
+export type DeviceType = 
+  | "iphone17" 
+  | "ipad-air" 
+  | "macbook-pro-16"
+  | "imac-24-inch"
+  | "samsung-galaxy-tab"
+  | "samsung-galaxy-phone";
 
 interface DeviceConfig {
   label: string;
   frameUrl: string;
   aspectRatio: number;
+  defaultWidth: number; // 2. Added this so you can control exact base sizes!
   screenArea: {
     top: string;
     left: string;
@@ -20,73 +28,43 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     label: "iPhone 17",
     frameUrl: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
-    screenArea: { 
-      top: "3.9%", 
-      left: "4.1%", 
-      width: "93.9%", 
-      height: "92.2%", 
-      borderRadius: "44px" 
-    }
+    defaultWidth: 340, // Phone size
+    screenArea: { top: "3.9%", left: "4.1%", width: "93.9%", height: "92.2%", borderRadius: "44px" }
   },
   "ipad-air": {
     label: "iPad Air",
     frameUrl: "/frames/ipad-air.png",
     aspectRatio: 2732 / 2048,
-    screenArea: { 
-      top: "7.7%", 
-      left: "4.3%", 
-      width: "91.5%", 
-      height: "84.7%", 
-      borderRadius: "9.7px" 
-    }
+    defaultWidth: 620, // Tablet size
+    screenArea: { top: "7.7%", left: "4.3%", width: "91.5%", height: "84.7%", borderRadius: "9.7px" }
   },
   "macbook-pro-16": {
     label: "MacBook Pro 16",
     frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
-    screenArea: { 
-      top: "6.3%", 
-      left: "9.3%", 
-      width: "81.4%", 
-      height: "81.48%", 
-      borderRadius: "1px" 
-    }
+    defaultWidth: 850, // Laptop size
+    screenArea: { top: "6.3%", left: "9.3%", width: "81.4%", height: "81.48%", borderRadius: "1px" }
   },
   "imac-24-inch": {
     label: "iMac 2021 24 inch",
     frameUrl: "/frames/imac-24-inch.png",
-    aspectRatio: 3456 / 2234,
-    screenArea: { 
-      top: "2.9%", 
-      left: "13.6%", 
-      width: "72.5%", 
-      height: "64%", 
-      borderRadius: "1px" 
-    }
+    aspectRatio: 1920 / 1440, // Desktop monitor with a chin ratio
+    defaultWidth: 1000, // Massive Desktop size
+    screenArea: { top: "2.9%", left: "13.6%", width: "72.5%", height: "64%", borderRadius: "1px" }
   },
   "samsung-galaxy-tab": {
     label: "Samsung Galaxy Tab",
     frameUrl: "/frames/samsung-galaxy-tab.png",
-    aspectRatio: 3456 / 2234,
-    screenArea: { 
-      top: "5.6%", 
-      left: "3.6%", 
-      width: "92.8%", 
-      height: "89.3%", 
-      borderRadius: "4px" 
-    }
+    aspectRatio: 2560 / 1600, // Landscape tablet ratio
+    defaultWidth: 650, // Tablet size
+    screenArea: { top: "5.6%", left: "3.6%", width: "92.8%", height: "89.3%", borderRadius: "4px" }
   },
   "samsung-galaxy-phone": {
     label: "Samsung Galaxy Phone",
     frameUrl: "/frames/samsung-galaxy-phone.png",
-    aspectRatio: 3456 / 2234,
-    screenArea: { 
-      top: "1.59%", 
-      left: "35.73%", 
-      width: "28.3%", 
-      height: "96.48%", 
-      borderRadius: "9.3px" 
-    }
+    aspectRatio: 1080 / 2340, // Vertical phone ratio
+    defaultWidth: 340, // Phone size
+    screenArea: { top: "1.59%", left: "35.73%", width: "28.3%", height: "96.48%", borderRadius: "9.3px" }
   }
 };
 
@@ -114,7 +92,6 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({
   const config = DEVICE_CONFIGS[device] || DEVICE_CONFIGS["iphone17"];
 
   // --- DROP SHADOW MATH ---
-  // Convert angle to radians (subtracting 90 so 0deg is top, 90deg is right, 180deg is bottom)
   const dsRad = (dropShadowAngle - 90) * (Math.PI / 180);
   const dsDistance = dropShadow * 0.8;
   const dsBlur = 20 + dropShadow * 1.5;
@@ -131,7 +108,7 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({
   const igRad = (innerGlowAngle - 90) * (Math.PI / 180);
   const igDistance = innerGlow * 0.8;
   const igBlur = 10 + innerGlow * 0.6;
-  const igAlpha = innerGlow * 0.008; // Max 0.8 opacity
+  const igAlpha = innerGlow * 0.008; 
   
   const igX = Math.round(Math.cos(igRad) * igDistance);
   const igY = Math.round(Math.sin(igRad) * igDistance);
@@ -144,7 +121,8 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({
     <div 
       className="relative transition-all duration-300"
       style={{
-        width: device.includes("macbook") ? 850 : (device.includes("ipad") ? 620 : 340),
+        // 3. Replaced the messy "includes" math with the explicit defaultWidth
+        width: config.defaultWidth,
         aspectRatio: `${config.aspectRatio}`,
         filter: dropShadowFilter,
       }}
