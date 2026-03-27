@@ -25,6 +25,7 @@ import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Pla
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
 type CanvasRatio = "16:9" | "9:16" | "1:1";
 
+// Dynamically load the GIF encoder without bloating your local bundle
 const loadGifJs = async () => {
   if ((window as any).GIF) return;
   return new Promise((resolve, reject) => {
@@ -51,8 +52,10 @@ const Index = () => {
   const [innerGlow, setInnerGlow] = useState(0);
   const [innerGlowAngle, setInnerGlowAngle] = useState(0); 
 
+  // --- Controlled Accordion State ---
   const [openAccordions, setOpenAccordions] = useState<string[]>(["asset", "frame", "lighting", "canvas"]);
 
+  // --- Animation State ---
   const [animEnabled, setAnimEnabled] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [animDuration, setAnimDuration] = useState(2); 
@@ -73,6 +76,7 @@ const Index = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [transparent, setTransparent] = useState(false);
 
+  // --- Canvas Dimensions State ---
   const [canvasRatio, setCanvasRatio] = useState<CanvasRatio>("16:9");
 
   const canvasDimensions = useMemo(() => {
@@ -84,6 +88,7 @@ const Index = () => {
   const CANVAS_WIDTH = canvasDimensions.width;
   const CANVAS_HEIGHT = canvasDimensions.height;
 
+  // --- Background Options State ---
   const [bgType, setBgType] = useState<"solid" | "gradient" | "image">("solid");
   const [bgColor, setBgColor] = useState("#ffffff");
   const [bgGradientType, setBgGradientType] = useState<"linear" | "radial">("linear");
@@ -99,14 +104,13 @@ const Index = () => {
   const animTargetRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
-  const mainAreaRef = useRef<HTMLDivElement>(null);
+  const mainAreaRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const calculateScale = () => {
       if (!mainAreaRef.current) return;
-      // Using bounding client rect ignores any internal scale overflows
       const { width, height } = mainAreaRef.current.getBoundingClientRect();
-      const padding = window.innerWidth < 1024 ? 40 : 80;
+      const padding = window.innerWidth < 1024 ? 32 : 80;
       const scaleX = (width - padding) / CANVAS_WIDTH;
       const scaleY = (height - padding) / CANVAS_HEIGHT;
       setPreviewScale(Math.min(scaleX, scaleY));
@@ -428,7 +432,7 @@ const Index = () => {
           <h1 className="text-xl font-bold tracking-tight">Screen Booth</h1>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold">
-          <span>&copy; {new Date().getFullYear()}</span>
+          <span>&copy; {new Date().getFullYear()} Screen Booth</span>
           <img 
             src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f32d.png" 
             alt="Hotdog" 
@@ -799,9 +803,9 @@ const Index = () => {
           </Accordion>
         </aside>
 
-        {/* IMPORTANT FIX: We remove the flex-layout from this wrapper completely and make it an absolute bounding box. 
-          This prevents the inner 1920x1080 canvas from stretching the browser's DOM flow on smaller screens 
-        */}
+        {/* CRITICAL LAYOUT FIX FOR DIMENSIONS: The wrapper uses explicit width and height from CANVAS state,
+            and shrinks disabled so that the browser does not compress it prior to CSS zooming.
+         */}
         <main 
           ref={mainAreaRef}
           className="w-full h-[45vh] min-h-[300px] lg:h-auto lg:flex-1 relative bg-muted/20 overflow-hidden shrink-0"
@@ -822,13 +826,14 @@ const Index = () => {
 
           <div className="absolute inset-0 pointer-events-none opacity-50" style={{ backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
 
-          {/* Absolute centering wrapper solves the dimension resizing bug entirely */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div
-              className="origin-center shadow-2xl transition-all duration-300 pointer-events-auto"
+              className="origin-center shadow-2xl transition-all duration-300 pointer-events-auto shrink-0"
               style={{
                 width: CANVAS_WIDTH,
                 height: CANVAS_HEIGHT,
+                minWidth: CANVAS_WIDTH,
+                minHeight: CANVAS_HEIGHT,
                 transform: `scale(${previewScale})`,
                 ...(transparent && { backgroundImage: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%)", backgroundSize: "40px 40px" })
               }}
