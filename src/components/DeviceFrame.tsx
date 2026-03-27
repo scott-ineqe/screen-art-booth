@@ -50,7 +50,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/imac-24-inch.png",
     aspectRatio: 1920 / 1440, // Desktop monitor with a chin ratio
     defaultWidth: 1000, // Massive Desktop size
-    screenArea: { top: "2.8%", left: "7,84%", width: "84.42%", height: "63.4%", borderRadius: "1px" }
+    screenArea: { top: "2.8%", left: "7,7%", width: "84.6%", height: "63.4%", borderRadius: "1px" }
   },
   "samsung-galaxy-tab": {
     label: "Samsung Galaxy Tab",
