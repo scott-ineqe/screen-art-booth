@@ -57,10 +57,10 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/imac-24-inch.png",
     aspectRatio: 3456 / 2234,
     screenArea: { 
-      top: "6.3%", 
-      left: "9.3%", 
-      width: "81.4%", 
-      height: "81.48%", 
+      top: "2.9%", 
+      left: "13.6%", 
+      width: "72.5%", 
+      height: "64%", 
       borderRadius: "1px" 
     }
   },
@@ -69,11 +69,11 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/samsung-galaxy-tab.png",
     aspectRatio: 3456 / 2234,
     screenArea: { 
-      top: "6.3%", 
-      left: "9.3%", 
-      width: "81.4%", 
-      height: "81.48%", 
-      borderRadius: "1px" 
+      top: "5.6%", 
+      left: "3.6%", 
+      width: "92.8%", 
+      height: "89.3%", 
+      borderRadius: "4px" 
     }
   },
   "samsung-galaxy-phone": {
@@ -81,11 +81,11 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/samsung-galaxy-phone.png",
     aspectRatio: 3456 / 2234,
     screenArea: { 
-      top: "6.3%", 
-      left: "9.3%", 
-      width: "81.4%", 
-      height: "81.48%", 
-      borderRadius: "1px" 
+      top: "1.59%", 
+      left: "35.73%", 
+      width: "28.3%", 
+      height: "96.48%", 
+      borderRadius: "9.3px" 
     }
   }
 };
