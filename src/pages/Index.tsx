@@ -465,6 +465,9 @@ const Index = () => {
                     { id: "iphone17", label: "iPhone 17", icon: <Smartphone className="w-4 h-4" /> },
                     { id: "ipad-air", label: "iPad Air", icon: <Tablet className="w-4 h-4" /> },
                     { id: "macbook-pro-16", label: "MacBook Pro 16", icon: <Laptop className="w-4 h-4" /> },
+                    { id: "imac-24-inch", label: "iMac 2021 24 inch", icon: <Laptop className="w-4 h-4" /> },
+                    { id: "samsung-galaxy-tab", label: "Samsung Galaxy Tab", icon: <Laptop className="w-4 h-4" /> },
+                    { id: "samsung-galaxy-phone", label: "Samsung Galaxy Phone", icon: <Laptop className="w-4 h-4" /> },
                   ].map((d) => (
                     <button
                       key={d.id}
@@ -480,7 +483,7 @@ const Index = () => {
                 </div>
               </AccordionContent>
             </AccordionItem>
-            
+
             <AccordionItem value="asset" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
                 Manage Asset
