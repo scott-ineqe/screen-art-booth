@@ -20,12 +20,11 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
-import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Play, RotateCcw, Crosshair } from "lucide-react";
+import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Play, RotateCcw, Crosshair, Move } from "lucide-react";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
-type CanvasRatio = "16:9" | "9:16" | "1:1";
+type CanvasRatio = "16:9" | "9:16" | "1:1" | "4:5"; // Added 4:5 ratio
 
-// Dynamically load the GIF encoder without bloating your local bundle
 const loadGifJs = async () => {
   if ((window as any).GIF) return;
   return new Promise((resolve, reject) => {
@@ -49,11 +48,10 @@ const Index = () => {
   const [dropShadow, setDropShadow] = useState(30);
   const [dropShadowAngle, setDropShadowAngle] = useState(180); 
   const [dropShadowAllSides, setDropShadowAllSides] = useState(false);
-  const [dropShadowColor, setDropShadowColor] = useState("#000000"); // Added state for shadow color
+  const [dropShadowColor, setDropShadowColor] = useState("#000000");
   const [innerGlow, setInnerGlow] = useState(0);
   const [innerGlowAngle, setInnerGlowAngle] = useState(0); 
 
-  // --- Controlled Accordion State ---
   const [openAccordions, setOpenAccordions] = useState<string[]>(["asset", "frame", "lighting", "canvas"]);
 
   // --- Animation State ---
@@ -61,18 +59,19 @@ const Index = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [animDuration, setAnimDuration] = useState(2); 
   const [animEasing, setAnimEasing] = useState("ease-in-out");
-  
   const [animStartScale, setAnimStartScale] = useState(40);
   const [animEndScale, setAnimEndScale] = useState(90);
-  
   const [animStartRot, setAnimStartRot] = useState(0);
   const [animEndRot, setAnimEndRot] = useState(0);
   const [animRotDirection, setAnimRotDirection] = useState<"cw" | "ccw">("cw");
-
   const [animStartX, setAnimStartX] = useState(0);
   const [animStartY, setAnimStartY] = useState(0);
   const [animEndX, setAnimEndX] = useState(0);
   const [animEndY, setAnimEndY] = useState(0);
+
+  // --- Static Canvas Position State ---
+  const [canvasX, setCanvasX] = useState(0);
+  const [canvasY, setCanvasY] = useState(0);
 
   const [isDragging, setIsDragging] = useState(false);
   const [transparent, setTransparent] = useState(false);
@@ -83,6 +82,7 @@ const Index = () => {
   const canvasDimensions = useMemo(() => {
     if (canvasRatio === "9:16") return { width: 1080, height: 1920 };
     if (canvasRatio === "1:1") return { width: 1080, height: 1080 };
+    if (canvasRatio === "4:5") return { width: 1080, height: 1350 }; // 1080x1350 mapping
     return { width: 1920, height: 1080 };
   }, [canvasRatio]);
 
@@ -166,11 +166,16 @@ const Index = () => {
 
   const handleResetAnimation = () => setIsPlaying(false);
 
-  const centerPositions = () => {
+  const centerAnimPositions = () => {
     setAnimStartX(0);
     setAnimStartY(0);
     setAnimEndX(0);
     setAnimEndY(0);
+  };
+
+  const centerCanvasPosition = () => {
+    setCanvasX(0);
+    setCanvasY(0);
   };
 
   const getActualEndRotation = (start: number, end: number, dir: "cw" | "ccw") => {
@@ -263,8 +268,8 @@ const Index = () => {
             const eX = animEnabled ? animEndX : 0;
             const sY = animEnabled ? animStartY : 0;
             const eY = animEnabled ? animEndY : 0;
-            const currentX = sX + (eX - sX) * easeT;
-            const currentY = sY + (eY - sY) * easeT;
+            const currentX = canvasX + (sX + (eX - sX) * easeT);
+            const currentY = canvasY + (sY + (eY - sY) * easeT);
 
             const startR = animEnabled ? animStartRot : 0;
             const endR = animEnabled ? actualEndRot : 0;
@@ -412,6 +417,7 @@ const Index = () => {
     device, transparent, bgColor, exportFormat, exportQuality, animEnabled, 
     animStartScale, animEndScale, animDuration, animEasing, deviceScale,
     animStartRot, animEndRot, animRotDirection, animStartX, animStartY, animEndX, animEndY,
+    canvasX, canvasY, // Added static position dependencies
     bgType, bgImage, bgGradientType, bgGradientColor1, bgGradientColor2, bgGradientAngle,
     CANVAS_WIDTH, CANVAS_HEIGHT 
   ]);
@@ -419,8 +425,10 @@ const Index = () => {
   const actualEndRot = getActualEndRotation(animStartRot, animEndRot, animRotDirection);
   const activeScale = animEnabled ? (isPlaying ? animEndScale : animStartScale) : deviceScale;
   const activeRot = animEnabled ? (isPlaying ? actualEndRot : animStartRot) : 0;
-  const activeX = animEnabled ? (isPlaying ? animEndX : animStartX) : 0;
-  const activeY = animEnabled ? (isPlaying ? animEndY : animStartY) : 0;
+  
+  // Combine static position with animation offset
+  const activeX = canvasX + (animEnabled ? (isPlaying ? animEndX : animStartX) : 0);
+  const activeY = canvasY + (animEnabled ? (isPlaying ? animEndY : animStartY) : 0);
 
   return (
     <div className="h-[100dvh] w-full bg-background flex flex-col overflow-hidden">
@@ -550,12 +558,33 @@ const Index = () => {
                         <SelectItem value="16:9">16:9 (1920x1080)</SelectItem>
                         <SelectItem value="9:16">9:16 (1080x1920)</SelectItem>
                         <SelectItem value="1:1">1:1 (1080x1080)</SelectItem>
+                        <SelectItem value="4:5">4:5 (1080x1350)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pb-2 border-b pt-2">
+                {/* NEW STATIC POSITION CONTROLS */}
+                <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm mt-2">
+                  <div className="flex items-center justify-between border-b pb-1 w-full">
+                    <Label className="text-xs font-bold flex items-center gap-1.5">
+                      <Move className="w-3.5 h-3.5" /> Position
+                    </Label>
+                    <Button variant="ghost" size="sm" className="h-5 px-2 text-[10px] bg-muted border shadow-sm" onClick={centerCanvasPosition}>
+                      <Crosshair className="w-3 h-3 mr-1"/> Center
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">X Axis</Label><span className="text-[10px] font-mono">{canvasX}px</span></div>
+                    <Slider value={[canvasX]} onValueChange={(v) => setCanvasX(v[0])} min={-800} max={800} />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Y Axis</Label><span className="text-[10px] font-mono">{canvasY}px</span></div>
+                    <Slider value={[canvasY]} onValueChange={(v) => setCanvasY(v[0])} min={-800} max={800} />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pb-2 border-b pt-4">
                   <Label className="text-sm font-medium cursor-pointer" onClick={() => setTransparent(!transparent)}>
                     Transparent Background
                   </Label>
@@ -658,7 +687,6 @@ const Index = () => {
                   
                   {dropShadow > 0 && (
                     <div className="space-y-4 pt-2">
-                      {/* NEW SHADOW COLOR PICKER UI */}
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground font-semibold">Shadow Color</Label>
                         <div className="flex items-center gap-3">
@@ -742,7 +770,7 @@ const Index = () => {
                     <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
                       <div className="flex items-center justify-between border-b pb-1 w-full">
                         <Label className="text-xs font-bold">Position Offset</Label>
-                        <Button variant="ghost" size="sm" className="h-5 px-2 text-[10px] bg-muted border shadow-sm" onClick={centerPositions} disabled={isPlaying}>
+                        <Button variant="ghost" size="sm" className="h-5 px-2 text-[10px] bg-muted border shadow-sm" onClick={centerAnimPositions} disabled={isPlaying}>
                           <Crosshair className="w-3 h-3 mr-1"/> Center
                         </Button>
                       </div>
@@ -872,7 +900,7 @@ const Index = () => {
                     dropShadow={dropShadow} 
                     dropShadowAngle={dropShadowAngle} 
                     dropShadowAllSides={dropShadowAllSides} 
-                    dropShadowColor={dropShadowColor} // Passed state to DeviceFrame
+                    dropShadowColor={dropShadowColor}
                     innerGlow={innerGlow} 
                     innerGlowAngle={innerGlowAngle} 
                     onUploadClick={() => fileInputRef.current?.click()} 
