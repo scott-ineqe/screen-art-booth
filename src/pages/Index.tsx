@@ -21,9 +21,9 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { 
-  Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, 
-  Play, RotateCcw, Crosshair, Move, Timer, Moon, Sun, Monitor, 
-  Layers, Sparkles, Video, Boxes, Palette, Zap, Plus, Trash2
+  Upload, Smartphone, ImageIcon, 
+  Play, RotateCcw, Moon, Sun, Monitor, 
+  Layers, Sparkles, Video, Palette, Plus, Trash2, Boxes
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -45,7 +45,6 @@ const Index = () => {
   const [image, setImage] = useState<string | null>(null);
   const [deviceScale, setDeviceScale] = useState(60);
   const [exporting, setExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0);
   const [previewScale, setPreviewScale] = useState(0.5);
 
   // Shadows & Glow
@@ -64,7 +63,6 @@ const Index = () => {
   const [animEndScale, setAnimEndScale] = useState(90);
   const [animStartRot, setAnimStartRot] = useState(0);
   const [animEndRot, setAnimEndRot] = useState(0);
-  const [animRotDirection, setAnimRotDirection] = useState<"cw" | "ccw">("cw");
   const [animStartX, setAnimStartX] = useState(0);
   const [animStartY, setAnimStartY] = useState(0);
   const [animEndX, setAnimEndX] = useState(0);
@@ -89,8 +87,6 @@ const Index = () => {
   const [bgRadialY, setBgRadialY] = useState(50);
   const [bgImage, setBgImage] = useState<string | null>(null);
 
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
-  
   const canvasRef = useRef<HTMLDivElement>(null);
   const animTargetRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -197,12 +193,9 @@ const Index = () => {
       return time;
     };
     const easeT = getEasingT(t);
-    const actualEndRot = (() => {
-        if (animStartRot === animEndRot) return animEndRot;
-        if (animRotDirection === "cw" && animEndRot < animStartRot) return animEndRot + 360;
-        if (animRotDirection === "ccw" && animEndRot > animStartRot) return animEndRot - 360;
-        return animEndRot;
-    })();
+    
+    // Simple rotation interpolation for preview
+    const actualEndRot = animEndRot;
 
     return {
       s: animStartScale + (animEndScale - animStartScale) * easeT,
@@ -210,11 +203,11 @@ const Index = () => {
       x: canvasX + (animStartX + (animEndX - animStartX) * easeT),
       y: canvasY + (animStartY + (animEndY - animStartY) * easeT)
     };
-  }, [animEasing, animStartRot, animEndRot, animRotDirection, animStartScale, animEndScale, canvasX, canvasY, animStartX, animEndX, animStartY, animEndY]);
+  }, [animEasing, animStartRot, animEndRot, animStartScale, animEndScale, canvasX, canvasY, animStartX, animEndX, animStartY, animEndY]);
 
   const previewState = useMemo(() => {
       if (mode === "mockup") return { s: deviceScale, r: 0, x: canvasX, y: canvasY };
-      return getInterpolatedTransform(scrubProgress / 100);
+      return getInterpolatedTransform((scrubProgress || 0) / 100);
   }, [mode, deviceScale, canvasX, canvasY, getInterpolatedTransform, scrubProgress]);
 
   const handlePlayAnimation = () => {
@@ -223,7 +216,7 @@ const Index = () => {
     setScrubProgress(0);
     
     const startTime = performance.now();
-    const durationMs = animDuration * 1000;
+    const durationMs = (animDuration || 2) * 1000;
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -246,7 +239,6 @@ const Index = () => {
     setExporting(true);
     
     try {
-      // For images, we just export the current state
       const dataUrl = await toPng(canvasRef.current, {
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT,
@@ -311,7 +303,7 @@ const Index = () => {
               </Button>
             </div>
 
-            <Accordion type="multiple" defaultValue={["frame", "background", "appearance"]} className="space-y-4">
+            <Accordion type="multiple" defaultValue={["frame", "canvas", "background", "appearance"]} className="space-y-4">
               <AccordionItem value="frame" className="border-none">
                 <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Device Frame</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 grid grid-cols-2 gap-2">
@@ -320,6 +312,24 @@ const Index = () => {
                       {id.replace(/-/g, ' ')}
                     </button>
                   ))}
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="canvas" className="border-none">
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Boxes className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Canvas Settings</span></div></AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Canvas Size</Label>
+                    <Select value={canvasRatio} onValueChange={(v: any) => setCanvasRatio(v)}>
+                      <SelectTrigger className="rounded-xl h-10 text-xs font-bold"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="16:9">Landscape (16:9)</SelectItem>
+                        <SelectItem value="9:16">Vertical (9:16)</SelectItem>
+                        <SelectItem value="1:1">Square (1:1)</SelectItem>
+                        <SelectItem value="4:5">Instagram (4:5)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
 
@@ -395,7 +405,7 @@ const Index = () => {
                    ) : (
                      <div className="space-y-6 animate-in slide-in-from-left-4">
                         <div className="bg-primary/5 p-3 rounded-xl border border-primary/10">
-                           <div className="flex items-center justify-between mb-3"><Label className="text-[10px] font-black uppercase text-primary">Scrubber</Label><span className="text-[10px] font-mono text-primary">{scrubProgress.toFixed(1)}%</span></div>
+                           <div className="flex items-center justify-between mb-3"><Label className="text-[10px] font-black uppercase text-primary">Scrubber</Label><span className="text-[10px] font-mono text-primary">{(scrubProgress || 0).toFixed(1)}%</span></div>
                            <Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} />
                            <div className="flex gap-2 mt-4"><Button onClick={handlePlayAnimation} disabled={isPlaying} className="flex-1 h-9 rounded-lg font-black text-[10px] uppercase"><Play className="w-3 h-3 mr-2" /> Play Preview</Button><Button variant="outline" size="icon" onClick={() => { setIsPlaying(false); setScrubProgress(0); }} className="h-9 w-9 border-primary/20"><RotateCcw className="w-3 h-3" /></Button></div>
                         </div>

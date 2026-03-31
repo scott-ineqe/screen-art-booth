@@ -48,9 +48,9 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
   "imac-24-inch": {
     label: "iMac 2021 24 inch",
     frameUrl: "/frames/imac-24-inch.png",
-    aspectRatio: 1920 / 1440, // Desktop monitor with a chin ratio
-    defaultWidth: 1000, // Massive Desktop size
-    screenArea: { top: "2.8%", left: "7,7%", width: "84.6%", height: "63.4%", borderRadius: "1px" }
+    aspectRatio: 1920 / 1440,
+    defaultWidth: 1000,
+    screenArea: { top: "2.8%", left: "7.7%", width: "84.6%", height: "63.4%", borderRadius: "1px" }
   },
   "samsung-galaxy-tab": {
     label: "Samsung Galaxy Tab",
