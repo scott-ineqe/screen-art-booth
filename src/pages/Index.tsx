@@ -23,7 +23,7 @@ import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, ImagePlus, Play, RotateCcw, Crosshair, Move } from "lucide-react";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
-type CanvasRatio = "16:9" | "9:16" | "1:1" | "4:5"; // Added 4:5 ratio
+type CanvasRatio = "16:9" | "9:16" | "1:1" | "4:5";
 
 const loadGifJs = async () => {
   if ((window as any).GIF) return;
@@ -69,7 +69,7 @@ const Index = () => {
   const [animEndX, setAnimEndX] = useState(0);
   const [animEndY, setAnimEndY] = useState(0);
 
-  // --- Static Canvas Position State ---
+  // --- Canvas Position State ---
   const [canvasX, setCanvasX] = useState(0);
   const [canvasY, setCanvasY] = useState(0);
 
@@ -82,7 +82,7 @@ const Index = () => {
   const canvasDimensions = useMemo(() => {
     if (canvasRatio === "9:16") return { width: 1080, height: 1920 };
     if (canvasRatio === "1:1") return { width: 1080, height: 1080 };
-    if (canvasRatio === "4:5") return { width: 1080, height: 1350 }; // 1080x1350 mapping
+    if (canvasRatio === "4:5") return { width: 1080, height: 1350 }; 
     return { width: 1920, height: 1080 };
   }, [canvasRatio]);
 
@@ -96,6 +96,12 @@ const Index = () => {
   const [bgGradientColor1, setBgGradientColor1] = useState("#e2e8f0");
   const [bgGradientColor2, setBgGradientColor2] = useState("#ffffff");
   const [bgGradientAngle, setBgGradientAngle] = useState(135);
+  // NEW GRADIENT POINT STATE
+  const [bgGradientStop1, setBgGradientStop1] = useState(0);
+  const [bgGradientStop2, setBgGradientStop2] = useState(100);
+  const [bgRadialX, setBgRadialX] = useState(50);
+  const [bgRadialY, setBgRadialY] = useState(50);
+  
   const [bgImage, setBgImage] = useState<string | null>(null);
 
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
@@ -190,9 +196,9 @@ const Index = () => {
     if (bgType === "solid") return { backgroundColor: bgColor };
     if (bgType === "gradient") {
       if (bgGradientType === "linear") {
-        return { backgroundImage: `linear-gradient(${bgGradientAngle}deg, ${bgGradientColor1}, ${bgGradientColor2})` };
+        return { backgroundImage: `linear-gradient(${bgGradientAngle}deg, ${bgGradientColor1} ${bgGradientStop1}%, ${bgGradientColor2} ${bgGradientStop2}%)` };
       } else {
-        return { backgroundImage: `radial-gradient(circle, ${bgGradientColor1}, ${bgGradientColor2})` };
+        return { backgroundImage: `radial-gradient(circle at ${bgRadialX}% ${bgRadialY}%, ${bgGradientColor1} ${bgGradientStop1}%, ${bgGradientColor2} ${bgGradientStop2}%)` };
       }
     }
     if (bgType === "image" && bgImage) {
@@ -417,8 +423,9 @@ const Index = () => {
     device, transparent, bgColor, exportFormat, exportQuality, animEnabled, 
     animStartScale, animEndScale, animDuration, animEasing, deviceScale,
     animStartRot, animEndRot, animRotDirection, animStartX, animStartY, animEndX, animEndY,
-    canvasX, canvasY, // Added static position dependencies
+    canvasX, canvasY, 
     bgType, bgImage, bgGradientType, bgGradientColor1, bgGradientColor2, bgGradientAngle,
+    bgGradientStop1, bgGradientStop2, bgRadialX, bgRadialY, // Added new dependencies
     CANVAS_WIDTH, CANVAS_HEIGHT 
   ]);
 
@@ -426,7 +433,6 @@ const Index = () => {
   const activeScale = animEnabled ? (isPlaying ? animEndScale : animStartScale) : deviceScale;
   const activeRot = animEnabled ? (isPlaying ? actualEndRot : animStartRot) : 0;
   
-  // Combine static position with animation offset
   const activeX = canvasX + (animEnabled ? (isPlaying ? animEndX : animStartX) : 0);
   const activeY = canvasY + (animEnabled ? (isPlaying ? animEndY : animStartY) : 0);
 
@@ -564,7 +570,6 @@ const Index = () => {
                   </div>
                 </div>
 
-                {/* NEW STATIC POSITION CONTROLS */}
                 <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm mt-2">
                   <div className="flex items-center justify-between border-b pb-1 w-full">
                     <Label className="text-xs font-bold flex items-center gap-1.5">
@@ -640,10 +645,32 @@ const Index = () => {
                           </div>
                         </div>
 
-                        {bgGradientType === "linear" && (
-                          <div className="space-y-3 pt-2">
-                            <div className="flex justify-between"><Label className="text-[10px]">Angle</Label><span className="text-[10px] font-mono">{bgGradientAngle}°</span></div>
+                        {/* NEW GRADIENT STOP CONTROLS */}
+                        <div className="space-y-3 pt-2 border-t border-dashed">
+                          <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Start Point</Label><span className="text-[10px] font-mono">{bgGradientStop1}%</span></div>
+                          <Slider value={[bgGradientStop1]} onValueChange={(v) => setBgGradientStop1(v[0])} max={100} />
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">End Point</Label><span className="text-[10px] font-mono">{bgGradientStop2}%</span></div>
+                          <Slider value={[bgGradientStop2]} onValueChange={(v) => setBgGradientStop2(v[0])} max={100} />
+                        </div>
+
+                        {bgGradientType === "linear" ? (
+                          <div className="space-y-3 pt-2 border-t border-dashed">
+                            <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Angle</Label><span className="text-[10px] font-mono">{bgGradientAngle}°</span></div>
                             <Slider value={[bgGradientAngle]} onValueChange={(v) => setBgGradientAngle(v[0])} max={360} />
+                          </div>
+                        ) : (
+                          <div className="space-y-3 pt-2 border-t border-dashed">
+                             <Label className="text-[10px] font-bold">Center Position</Label>
+                             <div className="space-y-3">
+                               <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">X Position</Label><span className="text-[10px] font-mono">{bgRadialX}%</span></div>
+                               <Slider value={[bgRadialX]} onValueChange={(v) => setBgRadialX(v[0])} max={100} />
+                             </div>
+                             <div className="space-y-3">
+                               <div className="flex justify-between"><Label className="text-[10px] text-muted-foreground">Y Position</Label><span className="text-[10px] font-mono">{bgRadialY}%</span></div>
+                               <Slider value={[bgRadialY]} onValueChange={(v) => setBgRadialY(v[0])} max={100} />
+                             </div>
                           </div>
                         )}
                       </div>
