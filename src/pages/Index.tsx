@@ -26,6 +26,7 @@ import {
   Layers, Sparkles, Video, Boxes, Palette, Zap, Plus, Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
 type CanvasRatio = "16:9" | "9:16" | "1:1" | "4:5";
@@ -45,7 +46,6 @@ const Index = () => {
   const [deviceScale, setDeviceScale] = useState(60);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
-  const [exportStatus, setExportStatus] = useState<string>("");
   const [previewScale, setPreviewScale] = useState(0.5);
 
   // Shadows & Glow
@@ -90,7 +90,6 @@ const Index = () => {
   const [bgImage, setBgImage] = useState<string | null>(null);
 
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
-  const [exportQuality, setExportQuality] = useState<string>("2");
   
   const canvasRef = useRef<HTMLDivElement>(null);
   const animTargetRef = useRef<HTMLDivElement>(null);
@@ -218,7 +217,54 @@ const Index = () => {
       return getInterpolatedTransform(scrubProgress / 100);
   }, [mode, deviceScale, canvasX, canvasY, getInterpolatedTransform, scrubProgress]);
 
-  const handleExport = async () => { /* Export logic remains the same */ };
+  const handlePlayAnimation = () => {
+    if (isPlaying) return;
+    setIsPlaying(true);
+    setScrubProgress(0);
+    
+    const startTime = performance.now();
+    const durationMs = animDuration * 1000;
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / durationMs, 1);
+      
+      setScrubProgress(progress * 100);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setIsPlaying(false);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  };
+
+  const handleExport = async () => {
+    if (!canvasRef.current) return;
+    setExporting(true);
+    
+    try {
+      // For images, we just export the current state
+      const dataUrl = await toPng(canvasRef.current, {
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        pixelRatio: 2,
+      });
+      
+      const link = document.createElement('a');
+      link.download = `mockup-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success("Mockup exported successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export image.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const glassCard = "bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-4 shadow-xl shadow-black/5";
 
@@ -349,15 +395,16 @@ const Index = () => {
                    ) : (
                      <div className="space-y-6 animate-in slide-in-from-left-4">
                         <div className="bg-primary/5 p-3 rounded-xl border border-primary/10">
-                           <div className="flex items-center justify-between mb-3"><Label className="text-[10px] font-black uppercase text-primary">Scrubber</Label><span className="text-[10px] font-mono text-primary">{scrubProgress}%</span></div>
+                           <div className="flex items-center justify-between mb-3"><Label className="text-[10px] font-black uppercase text-primary">Scrubber</Label><span className="text-[10px] font-mono text-primary">{scrubProgress.toFixed(1)}%</span></div>
                            <Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} />
                            <div className="flex gap-2 mt-4"><Button onClick={handlePlayAnimation} disabled={isPlaying} className="flex-1 h-9 rounded-lg font-black text-[10px] uppercase"><Play className="w-3 h-3 mr-2" /> Play Preview</Button><Button variant="outline" size="icon" onClick={() => { setIsPlaying(false); setScrubProgress(0); }} className="h-9 w-9 border-primary/20"><RotateCcw className="w-3 h-3" /></Button></div>
                         </div>
                         <div className="space-y-4">
-                           <Label className="text-[10px] font-bold uppercase opacity-60">Motion Path</Label>
+                           <Label className="text-[10px] font-bold uppercase opacity-60">Motion & Scale</Label>
                            <div className="space-y-4 px-1">
-                              <div className="space-y-2"><Label className="text-[9px] uppercase opacity-40">Start X/Y</Label><Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} /><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} /></div>
-                              <div className="space-y-2"><Label className="text-[9px] uppercase opacity-40">End X/Y</Label><Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} /><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} /></div>
+                              <div className="space-y-2"><Label className="text-[9px] uppercase opacity-40">Start X/Y & Scale</Label><Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} /><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} /><Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} /></div>
+                              <div className="space-y-2"><Label className="text-[9px] uppercase opacity-40">End X/Y & Scale</Label><Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} /><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} /><Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} /></div>
+                              <div className="space-y-2"><Label className="text-[9px] uppercase opacity-40">Rotation (Start/End)</Label><Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} /><Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} /></div>
                            </div>
                         </div>
                      </div>
