@@ -1,3 +1,4 @@
+// vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -14,7 +15,7 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: {
-      // process.cwd() works in ESM where __dirname does not
+      // process.cwd() is mandatory for ESM modules on Vercel
       "@": path.resolve(process.cwd(), "./src"),
     },
   },
