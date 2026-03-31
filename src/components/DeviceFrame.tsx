@@ -74,6 +74,7 @@ interface DeviceFrameProps {
   dropShadow: number;
   dropShadowAngle: number;
   dropShadowAllSides: boolean;
+  dropShadowColor: string; // Added shadow color prop
   innerGlow: number;
   innerGlowAngle: number;
   onUploadClick?: () => void;
@@ -85,6 +86,7 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({
   dropShadow, 
   dropShadowAngle, 
   dropShadowAllSides,
+  dropShadowColor, // Destructured shadow color
   innerGlow,
   innerGlowAngle,
   onUploadClick 
@@ -95,13 +97,13 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({
   const dsRad = (dropShadowAngle - 90) * (Math.PI / 180);
   const dsDistance = dropShadow * 0.8;
   const dsBlur = 20 + dropShadow * 1.5;
-  const dsAlpha = 0.1 + dropShadow * 0.005;
   
   const dsX = dropShadowAllSides ? 0 : Math.round(Math.cos(dsRad) * dsDistance);
   const dsY = dropShadowAllSides ? 0 : Math.round(Math.sin(dsRad) * dsDistance);
   
+  // Updated to use the hex color prop instead of hardcoded RGBA
   const dropShadowFilter = dropShadow > 0 
-    ? `drop-shadow(${dsX}px ${dsY}px ${dsBlur}px rgba(0,0,0,${dsAlpha}))` 
+    ? `drop-shadow(${dsX}px ${dsY}px ${dsBlur}px ${dropShadowColor})` 
     : undefined;
 
   // --- INNER GLOW MATH ---
@@ -121,7 +123,6 @@ const DeviceFrame: React.FC<DeviceFrameProps> = ({
     <div 
       className="relative transition-all duration-300"
       style={{
-        // 3. Replaced the messy "includes" math with the explicit defaultWidth
         width: config.defaultWidth,
         aspectRatio: `${config.aspectRatio}`,
         filter: dropShadowFilter,

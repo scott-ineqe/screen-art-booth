@@ -49,6 +49,7 @@ const Index = () => {
   const [dropShadow, setDropShadow] = useState(30);
   const [dropShadowAngle, setDropShadowAngle] = useState(180); 
   const [dropShadowAllSides, setDropShadowAllSides] = useState(false);
+  const [dropShadowColor, setDropShadowColor] = useState("#000000"); // Added state for shadow color
   const [innerGlow, setInnerGlow] = useState(0);
   const [innerGlowAngle, setInnerGlowAngle] = useState(0); 
 
@@ -423,7 +424,6 @@ const Index = () => {
 
   return (
     <div className="h-[100dvh] w-full bg-background flex flex-col overflow-hidden">
-      {/* Header with strictly sized hotdog image to prevent stretching */}
       <header className="border-b bg-card px-6 py-4 shrink-0 z-10 relative flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="bg-primary p-2 rounded-lg">
@@ -442,9 +442,7 @@ const Index = () => {
       </header>
 
       <div className="flex-1 flex flex-col-reverse lg:flex-row min-h-0 relative">
-        
         <aside className="w-full lg:w-[360px] flex-1 lg:flex-none border-t lg:border-t-0 lg:border-r bg-card p-4 overflow-y-auto shrink-0 z-10 relative custom-scrollbar">
-          
           <Accordion 
             type="multiple" 
             value={openAccordions} 
@@ -454,7 +452,6 @@ const Index = () => {
             }} 
             className="w-full pb-8 lg:pb-0" 
           >
-            
             <AccordionItem value="frame" className="border-b-0 mb-4 bg-muted/20 p-4 rounded-xl border">
               <AccordionTrigger className="text-xs font-black uppercase tracking-wider text-muted-foreground hover:no-underline py-0 pb-4">
                 Select Frame
@@ -653,7 +650,6 @@ const Index = () => {
                 Lighting & Shadows
               </AccordionTrigger>
               <AccordionContent className="space-y-6 pb-4 pt-2 px-2 -mx-2">
-                
                 <div className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex justify-between"><Label>Drop Shadow</Label><span className="text-xs font-mono">{dropShadow}%</span></div>
@@ -661,7 +657,29 @@ const Index = () => {
                   </div>
                   
                   {dropShadow > 0 && (
-                    <div className="space-y-3 pt-2">
+                    <div className="space-y-4 pt-2">
+                      {/* NEW SHADOW COLOR PICKER UI */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground font-semibold">Shadow Color</Label>
+                        <div className="flex items-center gap-3">
+                          <div className="relative w-10 h-10 rounded-md border border-border overflow-hidden shrink-0">
+                            <input 
+                              type="color" 
+                              value={dropShadowColor} 
+                              onChange={(e) => setDropShadowColor(e.target.value)} 
+                              className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" 
+                            />
+                          </div>
+                          <Input 
+                            value={dropShadowColor} 
+                            onChange={(e) => setDropShadowColor(e.target.value)} 
+                            placeholder="#000000" 
+                            className="font-mono uppercase h-10" 
+                            maxLength={7} 
+                          />
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between">
                         <Label className="text-xs text-muted-foreground">Shadow on all sides</Label>
                         <Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} />
@@ -688,7 +706,6 @@ const Index = () => {
                     </div>
                   )}
                 </div>
-
               </AccordionContent>
             </AccordionItem>
 
@@ -707,11 +724,9 @@ const Index = () => {
                   />
                 </div>
               </div>
-              
               <AccordionContent className="pb-4 pt-2 px-2 -mx-2 overflow-visible">
                 {animEnabled && (
                   <div className="space-y-6 pt-4 animate-in fade-in zoom-in-95 duration-200">
-                    
                     <div className="space-y-4 bg-background p-3 rounded-lg border shadow-sm">
                       <Label className="text-xs font-bold border-b pb-1 w-full flex">Scale</Label>
                       <div className="space-y-3">
@@ -802,13 +817,9 @@ const Index = () => {
                 )}
               </AccordionContent>
             </AccordionItem>
-
           </Accordion>
         </aside>
 
-        {/* CRITICAL LAYOUT FIX FOR DIMENSIONS: The wrapper uses explicit width and height from CANVAS state,
-            and shrinks disabled so that the browser does not compress it prior to CSS zooming.
-         */}
         <main 
           ref={mainAreaRef}
           className="w-full h-[45vh] min-h-[300px] lg:h-auto lg:flex-1 relative bg-muted/20 overflow-hidden shrink-0"
@@ -856,7 +867,15 @@ const Index = () => {
                   }}
                 >
                   <DeviceFrame 
-                    device={device} image={image} dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} 
+                    device={device} 
+                    image={image} 
+                    dropShadow={dropShadow} 
+                    dropShadowAngle={dropShadowAngle} 
+                    dropShadowAllSides={dropShadowAllSides} 
+                    dropShadowColor={dropShadowColor} // Passed state to DeviceFrame
+                    innerGlow={innerGlow} 
+                    innerGlowAngle={innerGlowAngle} 
+                    onUploadClick={() => fileInputRef.current?.click()} 
                   />
                 </div>
               </div>
