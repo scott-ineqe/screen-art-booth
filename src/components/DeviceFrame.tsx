@@ -29,7 +29,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/iphone-17.png",
     aspectRatio: 1179 / 2556,
     defaultWidth: 340, // Phone size
-    screenArea: { top: "3.9%", left: "4.1%", width: "91.8", height: "92.2%", borderRadius: "44px" }
+    screenArea: { top: "3.9%", left: "4.1%", width: "91.8%", height: "92.2%", borderRadius: "44px" }
   },
   "ipad-air": {
     label: "iPad Air",
