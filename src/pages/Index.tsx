@@ -23,7 +23,7 @@ import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { 
   Upload, Smartphone, ImageIcon, 
   Play, RotateCcw, Moon, Sun, Monitor, 
-  Layers, Sparkles, Video, Palette, Plus, Trash2, Boxes, Crosshair
+  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -76,7 +76,6 @@ const Index = () => {
   const [animEndScale, setAnimEndScale] = useState(90);
   const [animStartRot, setAnimStartRot] = useState(0);
   const [animEndRot, setAnimEndRot] = useState(0);
-  const [animRotDirection, setAnimRotDirection] = useState<"cw" | "ccw">("cw");
   const [animStartX, setAnimStartX] = useState(0);
   const [animStartY, setAnimStartY] = useState(0);
   const [animEndX, setAnimEndX] = useState(0);
@@ -266,22 +265,24 @@ const Index = () => {
 
       if (exportFormat === "video" || exportFormat === "gif") {
         const isGif = exportFormat === "gif";
-        const fps = isGif ? 15 : 30; // 30fps for smooth QuickTime playback
+        const fps = isGif ? 15 : 30; // 30fps for smooth playback
         const totalFrames = Math.ceil(animDuration * fps);
         const frames: HTMLCanvasElement[] = [];
         const el = canvasRef.current;
         const targetNode = animTargetRef.current!;
         targetNode.style.transition = 'none';
         
+        // 1. Generate all frames off-screen
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
             targetNode.style.transform = `translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg)`;
-            await new Promise(res => setTimeout(res, 25)); // Frame capture sync buffer
-            frames.push(await toCanvas(el, { ...baseExportOptions, pixelRatio }));
+            await new Promise(res => setTimeout(res, 25)); // Buffer for hardware sync
+            frames.push(await toCanvas(el, { ...baseExportOptions, pixelRatio: isGif ? pixelRatio : pixelRatio }));
             setExportProgress(Math.round((i / totalFrames) * 40));
         }
 
         if (isGif) {
+          // GIF Encoding logic remains exactly the same
           setExportStatus("Quantizing GIF...");
           await loadGifJs();
           const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
@@ -310,7 +311,7 @@ const Index = () => {
           outCanvas.height = frames[0].height;
           const ctx = outCanvas.getContext('2d')!;
           
-          // Use H.264 if available for QuickTime compatibility
+          // Detect highest quality QuickTime-compatible codec available
           const videoMimeTypes = ['video/mp4;codecs=avc1', 'video/webm;codecs=h264', 'video/webm'];
           const mimeType = videoMimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
           
@@ -332,18 +333,37 @@ const Index = () => {
           };
           
           recorder.start();
+          
+          // FIX: Throttled loop to perfectly match target FPS duration
           let f = 0;
-          const captureLoop = () => {
+          let lastTime = performance.now();
+          const frameDelay = 1000 / fps; // e.g., ~33.3ms for 30fps
+
+          const captureLoop = (currentTime: number) => {
             if (f >= frames.length) { 
               setTimeout(() => recorder.stop(), 500); 
               return; 
             }
-            ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
-            ctx.drawImage(frames[f++], 0, 0);
-            setExportProgress(40 + Math.round((f / frames.length) * 60));
+            
+            const elapsed = currentTime - lastTime;
+            
+            // Wait until enough real-time has passed to draw the next frame
+            if (elapsed >= frameDelay) {
+              ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
+              ctx.drawImage(frames[f++], 0, 0);
+              setExportProgress(40 + Math.round((f / frames.length) * 60));
+              
+              // Maintain strict sync with time (catch up for any lost ms)
+              lastTime = currentTime - (elapsed % frameDelay);
+            }
+            
             requestAnimationFrame(captureLoop);
           };
-          captureLoop();
+          
+          // Draw first frame instantly, then start the loop
+          ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
+          ctx.drawImage(frames[f++], 0, 0);
+          requestAnimationFrame(captureLoop);
         }
       } else {
         const imageOptions = { ...baseExportOptions, pixelRatio };
