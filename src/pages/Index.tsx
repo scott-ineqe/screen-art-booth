@@ -376,13 +376,25 @@ const Index = () => {
                                 <div className="flex justify-between items-center"><Label className="text-[9px] uppercase opacity-40 font-bold">Start Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40 hover:opacity-100" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
                                 <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} />
                                 <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
-                                <div className="flex justify-between"><Label className="text-[8px] opacity-30 uppercase">Scale</Label><Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} className="w-[70%]" /></div>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between items-center">
+                                    <Label className="text-[8px] opacity-30 uppercase">Scale</Label>
+                                    <span className="text-[8px] opacity-30 font-mono">{animStartScale}%</span>
+                                  </div>
+                                  <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} />
+                                </div>
                               </div>
                               <div className="space-y-3">
                                 <div className="flex justify-between items-center"><Label className="text-[9px] uppercase opacity-40 font-bold">End Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40 hover:opacity-100" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
                                 <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} />
                                 <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
-                                <div className="flex justify-between"><Label className="text-[8px] opacity-30 uppercase">Scale</Label><Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} className="w-[70%]" /></div>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between items-center">
+                                    <Label className="text-[8px] opacity-30 uppercase">Scale</Label>
+                                    <span className="text-[8px] opacity-30 font-mono">{animEndScale}%</span>
+                                  </div>
+                                  <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} />
+                                </div>
                               </div>
                               <div className="space-y-2 pt-2 border-t border-border/20">
                                 <Label className="text-[9px] uppercase opacity-40 font-bold">Rotation (Start/End)</Label>
