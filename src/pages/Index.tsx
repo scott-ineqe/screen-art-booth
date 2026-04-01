@@ -23,7 +23,7 @@ import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { 
   Upload, Smartphone, ImageIcon, 
   Play, RotateCcw, Moon, Sun, Monitor, 
-  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair, Zap
+  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair, Zap, Type, Layout
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -31,6 +31,7 @@ import { toast } from "sonner";
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
 type CanvasRatio = "16:9" | "9:16" | "1:1" | "4:5";
 type AppMode = "mockup" | "animation";
+type Corner = "tl" | "tr" | "bl" | "br";
 
 interface GradientStop {
   id: string;
@@ -76,12 +77,24 @@ const Index = () => {
   const [animEndScale, setAnimEndScale] = useState(90);
   const [animStartRot, setAnimStartRot] = useState(0);
   const [animEndRot, setAnimEndRot] = useState(0);
-  const [animRotDirection, setAnimRotDirection] = useState<"cw" | "ccw">("cw");
   const [animStartX, setAnimStartX] = useState(0);
   const [animStartY, setAnimStartY] = useState(0);
   const [animEndX, setAnimEndX] = useState(0);
   const [animEndY, setAnimEndY] = useState(0);
   const [scrubProgress, setScrubProgress] = useState(0);
+
+  // Overlays State
+  const [logo, setLogo] = useState<string | null>(null);
+  const [logoCorner, setLogoCorner] = useState<Corner>("tr");
+  const [logoPadding, setLogoPadding] = useState(40);
+  const [logoWidth, setLogoWidth] = useState(120);
+
+  const [overlayText, setOverlayText] = useState("");
+  const [overlayTextCorner, setOverlayTextCorner] = useState<Corner>("bl");
+  const [overlayTextPadding, setOverlayTextPadding] = useState(40);
+  const [overlayTextWidth, setOverlayTextWidth] = useState(300);
+  const [overlayTextColor, setOverlayTextColor] = useState("#ffffff");
+  const [overlayTextSize, setOverlayTextSize] = useState(16);
 
   // Canvas & Background State
   const [canvasX, setCanvasX] = useState(0);
@@ -108,6 +121,7 @@ const Index = () => {
   const animTargetRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>();
 
@@ -172,6 +186,14 @@ const Index = () => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => setBgImage(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogo(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -326,8 +348,8 @@ const Index = () => {
         const link = document.createElement("a"); link.download = `booth-art-${Date.now()}.${exportFormat}`; link.href = dataUrl; link.click();
         setExporting(false);
       }
-    } catch (err) { console.error(err); setExporting(false); toast.error("Export failed. Check permissions."); }
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, bgType, bgImage, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, getInterpolatedTransform]);
+    } catch (err) { console.error(err); setExporting(false); toast.error("Export failed. Please check browser permissions."); }
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, bgType, bgImage, getInterpolatedTransform]);
 
   const NumericInput = ({ value, onChange, suffix = "" }: { value: number, onChange: (val: number) => void, suffix?: string }) => (
     <div className="relative w-16 group shrink-0">
@@ -338,6 +360,15 @@ const Index = () => {
       <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] opacity-30 pointer-events-none group-focus-within:hidden">{suffix}</span>
     </div>
   );
+
+  const getCornerStyles = (corner: Corner, padding: number): React.CSSProperties => {
+    switch (corner) {
+      case "tl": return { top: padding, left: padding };
+      case "tr": return { top: padding, right: padding };
+      case "bl": return { bottom: padding, left: padding };
+      case "br": return { bottom: padding, right: padding };
+    }
+  };
 
   const glassCard = "bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-4 shadow-xl shadow-black/5";
 
@@ -365,7 +396,7 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-muted/40 rounded-full px-3 py-1 gap-2 border border-border/40 mr-2">
             <Select value={exportFormat} onValueChange={(v: any) => setExportFormat(v)}>
-              <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-sm font-bold"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-xs font-bold"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="png">PNG</SelectItem>
                 <SelectItem value="jpeg">JPEG</SelectItem>
@@ -376,7 +407,7 @@ const Index = () => {
             </Select>
             <div className="w-px h-4 bg-border/40" />
             <Select value={exportQuality} onValueChange={setExportQuality}>
-              <SelectTrigger className="h-8 w-[60px] border-none bg-transparent shadow-none text-sm font-bold"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-[60px] border-none bg-transparent shadow-none text-xs font-bold"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="1">1x</SelectItem><SelectItem value="2">2x</SelectItem><SelectItem value="3">3x</SelectItem></SelectContent>
             </Select>
           </div>
@@ -459,6 +490,69 @@ const Index = () => {
                 </AccordionContent>
               </AccordionItem>
 
+              <AccordionItem value="overlays" className="border-none">
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Layout className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">Overlays</span></div></AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-6">
+                  {/* LOGO OVERLAY */}
+                  <div className="space-y-4">
+                    <Label className="text-sm font-bold uppercase">Brand Logo</Label>
+                    <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                    <div className="flex gap-2">
+                       <Button variant="outline" className="flex-1 h-10 text-xs uppercase font-black" onClick={() => logoInputRef.current?.click()}>{logo ? "Change Logo" : "Upload Logo"}</Button>
+                       {logo && <Button variant="destructive" size="icon" className="h-10 w-10" onClick={() => setLogo(null)}><Trash2 className="w-4 h-4" /></Button>}
+                    </div>
+                    {logo && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                         <div className="space-y-2">
+                           <Label className="text-xs uppercase opacity-60">Logo Corner</Label>
+                           <Select value={logoCorner} onValueChange={(v: any) => setLogoCorner(v)}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="tl">Top Left</SelectItem><SelectItem value="tr">Top Right</SelectItem><SelectItem value="bl">Bottom Left</SelectItem><SelectItem value="br">Bottom Right</SelectItem></SelectContent></Select>
+                         </div>
+                         <div className="space-y-2">
+                           <Label className="text-xs uppercase opacity-60">Width</Label>
+                           <div className="flex items-center gap-4"><Slider value={[logoWidth]} onValueChange={(v) => setLogoWidth(v[0])} min={20} max={400} className="flex-1" /><NumericInput value={logoWidth} onChange={setLogoWidth} suffix="px" /></div>
+                         </div>
+                         <div className="space-y-2">
+                           <Label className="text-xs uppercase opacity-60">Corner Padding</Label>
+                           <div className="flex items-center gap-4"><Slider value={[logoPadding]} onValueChange={(v) => setLogoPadding(v[0])} min={0} max={200} className="flex-1" /><NumericInput value={logoPadding} onChange={setLogoPadding} suffix="px" /></div>
+                         </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* TEXT OVERLAY */}
+                  <div className="space-y-4 border-t border-border/10 pt-4">
+                    <Label className="text-sm font-bold uppercase">Custom Text (Copyright)</Label>
+                    <Input placeholder="Enter copyright text..." value={overlayText} onChange={(e) => setOverlayText(e.target.value)} className="h-10 text-sm" />
+                    {overlayText && (
+                       <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                          <div className="space-y-2">
+                            <Label className="text-xs uppercase opacity-60">Text Corner</Label>
+                            <Select value={overlayTextCorner} onValueChange={(v: any) => setOverlayTextCorner(v)}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="tl">Top Left</SelectItem><SelectItem value="tr">Top Right</SelectItem><SelectItem value="bl">Bottom Left</SelectItem><SelectItem value="br">Bottom Right</SelectItem></SelectContent></Select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <Label className="text-xs uppercase opacity-60">Font Size</Label>
+                                <div className="flex items-center gap-2"><NumericInput value={overlayTextSize} onChange={setOverlayTextSize} /></div>
+                             </div>
+                             <div className="space-y-2">
+                                <Label className="text-xs uppercase opacity-60">Text Color</Label>
+                                <div className="flex items-center gap-2"><input type="color" value={overlayTextColor} onChange={(e) => setOverlayTextColor(e.target.value)} className="w-full h-7 rounded border border-muted cursor-pointer" /></div>
+                             </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs uppercase opacity-60">Max Width</Label>
+                            <div className="flex items-center gap-4"><Slider value={[overlayTextWidth]} onValueChange={(v) => setOverlayTextWidth(v[0])} min={50} max={600} className="flex-1" /><NumericInput value={overlayTextWidth} onChange={setOverlayTextWidth} suffix="px" /></div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs uppercase opacity-60">Corner Padding</Label>
+                            <div className="flex items-center gap-4"><Slider value={[overlayTextPadding]} onValueChange={(v) => setOverlayTextPadding(v[0])} min={0} max={200} className="flex-1" /><NumericInput value={overlayTextPadding} onChange={setOverlayTextPadding} suffix="px" /></div>
+                          </div>
+                       </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
               <AccordionItem value="effects" className="border-none">
                 <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">Effects</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-6">
@@ -509,6 +603,13 @@ const Index = () => {
             {transparent && <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
             <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
               <div ref={canvasRef} className={cn("w-full h-full relative overflow-hidden pointer-events-auto", !transparent && "bg-background")} style={getCanvasBackgroundStyles()}>
+                
+                {/* LOGO OVERLAY */}
+                {logo && <img src={logo} alt="Logo" className="absolute z-40 object-contain pointer-events-none" style={{ ...getCornerStyles(logoCorner, logoPadding), width: logoWidth, height: 'auto' }} />}
+
+                {/* TEXT OVERLAY */}
+                {overlayText && <div className="absolute z-40 pointer-events-none break-words font-medium leading-tight" style={{ ...getCornerStyles(overlayTextCorner, overlayTextPadding), width: overlayTextWidth, color: overlayTextColor, fontSize: overlayTextSize }}>{overlayText}</div>}
+
                 <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
                   style={{ transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, transition: 'none' }}>
                   <div className="pointer-events-auto">
