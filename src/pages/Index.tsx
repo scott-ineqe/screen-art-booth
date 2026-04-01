@@ -23,7 +23,7 @@ import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { 
   Upload, Smartphone, ImageIcon, 
   Play, RotateCcw, Moon, Sun, Monitor, 
-  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair
+  Layers, Sparkles, Video, Palette, Plus, Trash2, Boxes, Crosshair, Wand2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -61,6 +61,7 @@ const Index = () => {
   const [previewScale, setPreviewScale] = useState(0.5);
 
   // Shadows & Glow
+  const [dropShadowEnabled, setDropShadowEnabled] = useState(true);
   const [dropShadow, setDropShadow] = useState(30);
   const [dropShadowAngle, setDropShadowAngle] = useState(180); 
   const [dropShadowAllSides, setDropShadowAllSides] = useState(false);
@@ -116,6 +117,7 @@ const Index = () => {
     root.classList.add(theme);
   }, [theme]);
 
+  // Sync export format when switching modes
   useEffect(() => {
     if (mode === "animation") setExportFormat("video");
     else setExportFormat("png");
@@ -250,11 +252,15 @@ const Index = () => {
       const pixelRatio = parseFloat(exportQuality);
       let effectiveBgColor = (exportFormat === "jpeg") ? ((transparent || bgType !== "solid") ? "#ffffff" : bgColor) : (transparent ? "rgba(0,0,0,0)" : (bgType === "solid" ? bgColor : "rgba(0,0,0,0)"));
       
+      // Force even dimensions for QuickTime/H.264 compatibility
+      const exportWidth = Math.floor((CANVAS_WIDTH * pixelRatio) / 2) * 2;
+      const exportHeight = Math.floor((CANVAS_HEIGHT * pixelRatio) / 2) * 2;
+      
       const baseExportOptions = { 
         cacheBust: true, 
         backgroundColor: effectiveBgColor, 
-        width: CANVAS_WIDTH, 
-        height: CANVAS_HEIGHT, 
+        width: exportWidth / pixelRatio, 
+        height: exportHeight / pixelRatio, 
         style: { transform: 'none' } 
       };
 
@@ -267,6 +273,7 @@ const Index = () => {
         const targetNode = animTargetRef.current!;
         targetNode.style.transition = 'none';
         
+        // 1. Generate all frames off-screen
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
             targetNode.style.transform = `translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg)`;
@@ -300,16 +307,11 @@ const Index = () => {
         } else {
           setExportStatus("Encoding MP4...");
           const outCanvas = document.createElement('canvas'); 
-          
-          // Force even dimensions for QuickTime/H.264 compatibility
-          const exportWidth = frames[0].width;
-          const exportHeight = frames[0].height;
-          outCanvas.width = exportWidth % 2 === 0 ? exportWidth : exportWidth - 1; 
-          outCanvas.height = exportHeight % 2 === 0 ? exportHeight : exportHeight - 1;
-          
+          outCanvas.width = frames[0].width; 
+          outCanvas.height = frames[0].height;
           const ctx = outCanvas.getContext('2d')!;
           
-          // Use H.264 if available for QuickTime compatibility
+          // Detect highest quality QuickTime-compatible codec available
           const videoMimeTypes = ['video/mp4;codecs=avc1', 'video/webm;codecs=h264', 'video/webm'];
           const mimeType = videoMimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
           
@@ -331,6 +333,7 @@ const Index = () => {
           };
           
           recorder.start();
+          
           let f = 0;
           let lastTime = performance.now();
           const frameDelay = 1000 / fps; 
@@ -340,13 +343,16 @@ const Index = () => {
               setTimeout(() => recorder.stop(), 500); 
               return; 
             }
+            
             const elapsed = currentTime - lastTime;
+            
             if (elapsed >= frameDelay) {
               ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
               ctx.drawImage(frames[f++], 0, 0, outCanvas.width, outCanvas.height);
               setExportProgress(40 + Math.round((f / frames.length) * 60));
               lastTime = currentTime - (elapsed % frameDelay);
             }
+            
             requestAnimationFrame(captureLoop);
           };
           
@@ -398,14 +404,7 @@ const Index = () => {
             <Select value={exportFormat} onValueChange={(v: any) => setExportFormat(v)}>
               <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-[11px] font-bold"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="png">PNG</SelectItem>
-                <SelectItem value="jpeg">JPEG</SelectItem>
-                {mode === "animation" && (
-                  <>
-                    <SelectItem value="video">MP4/WebM</SelectItem>
-                    <SelectItem value="gif">GIF</SelectItem>
-                  </>
-                )}
+                {mode === "mockup" ? (<><SelectItem value="png">PNG</SelectItem><SelectItem value="jpeg">JPEG</SelectItem></>) : (<><SelectItem value="video">MP4/WebM</SelectItem><SelectItem value="gif">GIF</SelectItem></>)}
               </SelectContent>
             </Select>
             <div className="w-px h-4 bg-border/40" />
@@ -454,6 +453,38 @@ const Index = () => {
                       {id.replace(/-/g, ' ')}
                     </button>
                   ))}
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="effects" className="border-none">
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Layers className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Effects</span></div></AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-6">
+                  <div className="flex items-center justify-between bg-muted/30 p-3 rounded-xl">
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Enable Drop Shadow</Label>
+                    <Switch checked={dropShadowEnabled} onCheckedChange={setDropShadowEnabled} />
+                  </div>
+                  {dropShadowEnabled && (
+                    <div className="space-y-6 animate-in fade-in">
+                       <div className="flex items-center justify-between bg-muted/30 p-3 rounded-xl">
+                         <Label className="text-[10px] font-bold uppercase opacity-60">Shadow on all sides</Label>
+                         <Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} />
+                       </div>
+                       <div className="space-y-1">
+                          <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Amount</Label><span className="text-[8px] font-mono opacity-30">{dropShadow}</span></div>
+                          <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} min={0} max={100} />
+                       </div>
+                       {!dropShadowAllSides && (
+                         <div className="space-y-1">
+                            <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Angle</Label><span className="text-[8px] font-mono opacity-30">{dropShadowAngle}°</span></div>
+                            <Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} min={0} max={360} />
+                         </div>
+                       )}
+                       <div className="flex items-center gap-2">
+                         <input type="color" value={dropShadowColor} onChange={(e) => setDropShadowColor(e.target.value)} className="w-8 h-8 rounded-lg cursor-pointer" />
+                         <Input value={dropShadowColor} onChange={(e) => setDropShadowColor(e.target.value)} className="font-mono h-8 text-[10px]" />
+                       </div>
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
 
@@ -572,7 +603,6 @@ const Index = () => {
 
         <main className="flex-1 flex flex-col relative overflow-hidden bg-muted/5">
           <div ref={stageRef} className="flex-1 flex items-center justify-center relative overflow-hidden p-10">
-            {/* Checkerboard placed securely behind the capture zone */}
             {transparent && <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
             
             <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
@@ -580,7 +610,7 @@ const Index = () => {
                 <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
                   style={{ transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, transition: 'none' }}>
                   <div className="pointer-events-auto">
-                      <DeviceFrame device={device} image={image} dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} dropShadowColor={dropShadowColor} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} />
+                      <DeviceFrame device={device} image={image} dropShadow={dropShadowEnabled ? dropShadow : 0} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} dropShadowColor={dropShadowColor} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} />
                   </div>
                 </div>
               </div>
