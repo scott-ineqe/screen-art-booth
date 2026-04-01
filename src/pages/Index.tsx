@@ -92,6 +92,7 @@ const Index = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const mainAreaRef = useRef<HTMLElement>(null);
+  const animationFrameRef = useRef<number>();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -116,7 +117,7 @@ const Index = () => {
   const calculateScale = useCallback(() => {
     if (!mainAreaRef.current) return;
     const { width, height } = mainAreaRef.current.getBoundingClientRect();
-    const padding = 100;
+    const padding = 160; 
     const availableWidth = width - padding;
     const availableHeight = height - padding;
     const scaleX = availableWidth / CANVAS_WIDTH;
@@ -208,7 +209,12 @@ const Index = () => {
   }, [mode, deviceScale, canvasX, canvasY, getInterpolatedTransform, scrubProgress]);
 
   const handlePlayAnimation = () => {
-    if (isPlaying) return;
+    if (isPlaying) {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      setIsPlaying(false);
+      return;
+    }
+    
     setIsPlaying(true);
     setScrubProgress(0);
     
@@ -222,13 +228,13 @@ const Index = () => {
       setScrubProgress(progress * 100);
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        animationFrameRef.current = requestAnimationFrame(animate);
       } else {
         setIsPlaying(false);
       }
     };
 
-    requestAnimationFrame(animate);
+    animationFrameRef.current = requestAnimationFrame(animate);
   };
 
   const handleExport = async () => {
@@ -364,11 +370,6 @@ const Index = () => {
                      </div>
                    ) : (
                      <div className="space-y-6 animate-in slide-in-from-left-4">
-                        <div className="bg-primary/5 p-3 rounded-xl border border-primary/10">
-                           <div className="flex items-center justify-between mb-3"><Label className="text-[10px] font-black uppercase text-primary">Scrubber</Label><span className="text-[10px] font-mono text-primary">{(scrubProgress || 0).toFixed(1)}%</span></div>
-                           <Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} />
-                           <div className="flex gap-2 mt-4"><Button onClick={handlePlayAnimation} disabled={isPlaying} className="flex-1 h-9 rounded-lg font-black text-[10px] uppercase"><Play className="w-3 h-3 mr-2" /> Play Preview</Button><Button variant="outline" size="icon" onClick={() => { setIsPlaying(false); setScrubProgress(0); }} className="h-9 w-9 border-primary/20"><RotateCcw className="w-3 h-3" /></Button></div>
-                        </div>
                         <div className="space-y-6">
                            <Label className="text-[10px] font-bold uppercase opacity-60">Motion & Scale Path</Label>
                            <div className="space-y-6 px-1">
@@ -411,17 +412,16 @@ const Index = () => {
           </div>
         </aside>
 
-        <main ref={mainAreaRef} className="flex-1 relative overflow-hidden flex flex-col items-center justify-center p-8 bg-muted/5">
+        <main ref={mainAreaRef} className="flex-1 relative overflow-hidden flex flex-col items-center justify-center p-8 bg-muted/5 gap-8">
           <div className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-[0.08]" style={{ backgroundImage: "linear-gradient(#000 1.5px, transparent 1.5px), linear-gradient(90deg, #000 1.5px, transparent 1.5px)", backgroundSize: "40px 40px" }} />
+          
           <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
             <div ref={canvasRef} className="w-full h-full relative overflow-hidden bg-background pointer-events-auto" style={getCanvasBackgroundStyles()}>
               {transparent && <div className="absolute inset-0" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
               <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
                 style={{ 
                   transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, 
-                  transitionProperty: isPlaying ? 'transform' : 'none', 
-                  transitionDuration: isPlaying ? `${animDuration}s` : '0s', 
-                  transitionTimingFunction: animEasing 
+                  transition: 'none' 
                 }}>
                 <div className="pointer-events-auto">
                     <DeviceFrame 
@@ -434,6 +434,28 @@ const Index = () => {
               </div>
             </div>
           </div>
+
+          {mode === "animation" && (
+            <div className="w-[800px] max-w-full bg-background/80 backdrop-blur-2xl border border-white/10 p-6 rounded-[2.5rem] shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-8 duration-700 z-50">
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-4">
+                  <Button onClick={handlePlayAnimation} variant={isPlaying ? "destructive" : "default"} className="h-12 w-12 rounded-full shadow-lg">
+                    {isPlaying ? <span className="font-black text-xs">STOP</span> : <Play className="fill-current w-5 h-5" />}
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => { setIsPlaying(false); setScrubProgress(0); }} className="h-10 w-10 rounded-full bg-muted/40">
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Label className="text-[10px] font-black tracking-widest text-primary uppercase">Timeframe Progress</Label>
+                  <span className="text-xl font-mono font-bold leading-none">{(scrubProgress || 0).toFixed(1)}%</span>
+                </div>
+              </div>
+              <div className="px-2">
+                <Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} className="h-4" />
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
