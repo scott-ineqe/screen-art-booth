@@ -117,7 +117,6 @@ const Index = () => {
     root.classList.add(theme);
   }, [theme]);
 
-  // Sync export format when switching modes
   useEffect(() => {
     if (mode === "animation") setExportFormat("video");
     else setExportFormat("png");
@@ -252,17 +251,11 @@ const Index = () => {
       const pixelRatio = parseFloat(exportQuality);
       let effectiveBgColor = (exportFormat === "jpeg") ? ((transparent || bgType !== "solid") ? "#ffffff" : bgColor) : (transparent ? "rgba(0,0,0,0)" : (bgType === "solid" ? bgColor : "rgba(0,0,0,0)"));
       
-      const baseExportOptions = { 
-        cacheBust: true, 
-        backgroundColor: effectiveBgColor, 
-        width: CANVAS_WIDTH, 
-        height: CANVAS_HEIGHT, 
-        style: { transform: 'none' } 
-      };
+      const baseExportOptions = { cacheBust: true, backgroundColor: effectiveBgColor, width: CANVAS_WIDTH, height: CANVAS_HEIGHT, style: { transform: 'none' } };
 
       if (exportFormat === "video" || exportFormat === "gif") {
         const isGif = exportFormat === "gif";
-        const fps = isGif ? 15 : 30; // 30fps for smooth playback
+        const fps = isGif ? 15 : 30; 
         const totalFrames = Math.ceil(animDuration * fps);
         const frames: HTMLCanvasElement[] = [];
         const el = canvasRef.current;
@@ -272,7 +265,7 @@ const Index = () => {
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
             targetNode.style.transform = `translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg)`;
-            await new Promise(res => setTimeout(res, 25)); // Buffer for hardware sync
+            await new Promise(res => setTimeout(res, 25)); 
             frames.push(await toCanvas(el, { ...baseExportOptions, pixelRatio }));
             setExportProgress(Math.round((i / totalFrames) * 40));
         }
@@ -282,66 +275,38 @@ const Index = () => {
           await loadGifJs();
           const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
           const workerUrl = URL.createObjectURL(await workerReq.blob());
-          const gif = new (window as any).GIF({ 
-            workers: 4, 
-            quality: 2, 
-            width: frames[0].width, 
-            height: frames[0].height, 
-            workerScript: workerUrl, 
-            transparent: transparent ? "rgba(0,0,0,0)" : null 
-          });
+          const gif = new (window as any).GIF({ workers: 4, quality: 2, width: frames[0].width, height: frames[0].height, workerScript: workerUrl, transparent: transparent ? "rgba(0,0,0,0)" : null });
           frames.forEach(frame => gif.addFrame(frame, { delay: 1000 / fps, copy: true }));
           gif.on('finished', (blob: Blob) => {
-            const link = document.createElement('a'); 
-            link.download = `booth-art-${Date.now()}.gif`; 
-            link.href = URL.createObjectURL(blob); 
-            link.click();
+            const link = document.createElement('a'); link.download = `booth-art-${Date.now()}.gif`; link.href = URL.createObjectURL(blob); link.click();
             setExporting(false);
           });
           gif.render();
         } else {
           setExportStatus("Encoding MP4...");
           const outCanvas = document.createElement('canvas'); 
-          
-          // Force even dimensions for QuickTime/H.264 compatibility
           const frameWidth = frames[0].width;
           const frameHeight = frames[0].height;
           outCanvas.width = frameWidth % 2 === 0 ? frameWidth : frameWidth - 1; 
           outCanvas.height = frameHeight % 2 === 0 ? frameHeight : frameHeight - 1;
-          
           const ctx = outCanvas.getContext('2d')!;
-          
-          // Use H.264 if available for QuickTime compatibility
           const videoMimeTypes = ['video/mp4;codecs=avc1', 'video/webm;codecs=h264', 'video/webm'];
           const mimeType = videoMimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
-          
           const stream = outCanvas.captureStream(fps);
-          const recorder = new MediaRecorder(stream, { 
-            mimeType, 
-            videoBitsPerSecond: 8000000 // 8Mbps high quality
-          });
-          
+          const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
           const chunks: BlobPart[] = [];
           recorder.ondataavailable = e => chunks.push(e.data);
           recorder.onstop = () => {
             const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-            const link = document.createElement('a'); 
-            link.download = `booth-art-${Date.now()}.${ext}`; 
-            link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); 
-            link.click();
+            const link = document.createElement('a'); link.download = `booth-art-${Date.now()}.${ext}`; link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); link.click();
             setExporting(false);
           };
-          
           recorder.start();
           let f = 0;
           let lastTime = performance.now();
           const frameDelay = 1000 / fps; 
-
           const captureLoop = (currentTime: number) => {
-            if (f >= frames.length) { 
-              setTimeout(() => recorder.stop(), 500); 
-              return; 
-            }
+            if (f >= frames.length) { setTimeout(() => recorder.stop(), 500); return; }
             const elapsed = currentTime - lastTime;
             if (elapsed >= frameDelay) {
               ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
@@ -351,7 +316,6 @@ const Index = () => {
             }
             requestAnimationFrame(captureLoop);
           };
-          
           ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
           ctx.drawImage(frames[f++], 0, 0, outCanvas.width, outCanvas.height);
           requestAnimationFrame(captureLoop);
@@ -359,18 +323,21 @@ const Index = () => {
       } else {
         const imageOptions = { ...baseExportOptions, pixelRatio };
         let dataUrl = (exportFormat === "jpeg") ? await toJpeg(canvasRef.current!, { ...imageOptions, quality: 0.98 }) : (exportFormat === "svg" ? await toSvg(canvasRef.current!, imageOptions) : await toPng(canvasRef.current!, imageOptions));
-        const link = document.createElement("a"); 
-        link.download = `booth-art-${Date.now()}.${exportFormat}`; 
-        link.href = dataUrl; 
-        link.click();
+        const link = document.createElement("a"); link.download = `booth-art-${Date.now()}.${exportFormat}`; link.href = dataUrl; link.click();
         setExporting(false);
       }
-    } catch (err) { 
-        console.error(err); 
-        setExporting(false); 
-        toast.error("Export failed. Please check browser permissions."); 
-    }
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, bgType, bgImage, getInterpolatedTransform]);
+    } catch (err) { console.error(err); setExporting(false); toast.error("Export failed. Check permissions."); }
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, bgType, bgImage, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, getInterpolatedTransform]);
+
+  const NumericInput = ({ value, onChange, suffix = "" }: { value: number, onChange: (val: number) => void, suffix?: string }) => (
+    <div className="relative w-16 group shrink-0">
+      <Input type="text" value={value} onChange={(e) => {
+          const val = parseFloat(e.target.value.replace(/[^\d.-]/g, ""));
+          if (!isNaN(val)) onChange(val);
+        }} className="h-7 px-1 text-center font-mono text-xs border-muted focus-visible:ring-1 focus-visible:ring-primary bg-background/50" />
+      <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] opacity-30 pointer-events-none group-focus-within:hidden">{suffix}</span>
+    </div>
+  );
 
   const glassCard = "bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-4 shadow-xl shadow-black/5";
 
@@ -381,7 +348,7 @@ const Index = () => {
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 transform hover:rotate-6 transition-transform">
             <Sparkles className="text-primary-foreground w-6 h-6" />
           </div>
-          <span className="text-lg font-black tracking-tight hidden sm:block">SCREEN ART BOOTH</span>
+          <span className="text-lg font-black tracking-tight hidden sm:block uppercase">Screen Art Booth</span>
         </div>
 
         <Tabs value={mode} onValueChange={(v: any) => setMode(v)} className="w-[360px]">
@@ -398,21 +365,18 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-muted/40 rounded-full px-3 py-1 gap-2 border border-border/40 mr-2">
             <Select value={exportFormat} onValueChange={(v: any) => setExportFormat(v)}>
-              <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-xs font-bold"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-sm font-bold"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="png">PNG</SelectItem>
                 <SelectItem value="jpeg">JPEG</SelectItem>
                 {mode === "animation" && (
-                  <>
-                    <SelectItem value="video">MP4/WebM</SelectItem>
-                    <SelectItem value="gif">GIF</SelectItem>
-                  </>
+                  <><SelectItem value="video">MP4/WebM</SelectItem><SelectItem value="gif">GIF</SelectItem></>
                 )}
               </SelectContent>
             </Select>
             <div className="w-px h-4 bg-border/40" />
             <Select value={exportQuality} onValueChange={setExportQuality}>
-              <SelectTrigger className="h-8 w-[60px] border-none bg-transparent shadow-none text-xs font-bold"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-[60px] border-none bg-transparent shadow-none text-sm font-bold"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="1">1x</SelectItem><SelectItem value="2">2x</SelectItem><SelectItem value="3">3x</SelectItem></SelectContent>
             </Select>
           </div>
@@ -430,7 +394,7 @@ const Index = () => {
            <div className="w-[320px] space-y-4 text-center">
               <div className="flex justify-between items-end"><Label className="text-xl font-black uppercase tracking-tighter text-primary">{exportStatus}</Label><span className="text-sm font-mono">{exportProgress}%</span></div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border/40"><div className="h-full bg-primary transition-all duration-300" style={{ width: `${exportProgress}%` }} /></div>
-              <p className="text-sm uppercase font-bold opacity-40">Keep this tab active while we render your art.</p>
+              <p className="text-sm uppercase font-bold opacity-40">Please keep this tab active.</p>
            </div>
         </div>
       )}
@@ -478,8 +442,8 @@ const Index = () => {
                               <div key={stop.id} className="flex items-center gap-2 bg-muted/20 p-2 rounded-lg">
                                 <input type="color" value={stop.color} onChange={(e) => updateGradientStop(stop.id, { color: e.target.value })} className="w-6 h-6 rounded shrink-0 cursor-pointer" />
                                 <div className="flex-1 px-2"><Slider value={[stop.stop]} onValueChange={(v) => updateGradientStop(stop.id, { stop: v[0] })} max={100} /></div>
-                                <span className="text-sm font-mono w-8">{stop.stop}%</span>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive/80" onClick={() => removeGradientStop(stop.id)} disabled={gradientStops.length <= 2}><Trash2 className="w-3 h-3" /></Button>
+                                <NumericInput value={stop.stop} onChange={(val) => updateGradientStop(stop.id, { stop: val })} suffix="%" />
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeGradientStop(stop.id)} disabled={gradientStops.length <= 2}><Trash2 className="w-3 h-3" /></Button>
                               </div>
                             ))}
                           </div>
@@ -496,46 +460,18 @@ const Index = () => {
               </AccordionItem>
 
               <AccordionItem value="effects" className="border-none">
-                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}>
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-bold uppercase tracking-wider">Effects</span>
-                  </div>
-                </AccordionTrigger>
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">Effects</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-6">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-bold uppercase">Drop Shadow</Label>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs uppercase opacity-60">All Sides</Label>
-                        <Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} />
-                      </div>
-                    </div>
-                    <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} min={0} max={100} />
+                    <div className="flex items-center justify-between"><Label className="text-sm font-bold uppercase">Drop Shadow</Label><div className="flex items-center gap-2"><Label className="text-xs uppercase opacity-60">All Sides</Label><Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} /></div></div>
+                    <div className="flex items-center gap-4"><Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} min={0} max={100} className="flex-1" /><NumericInput value={dropShadow} onChange={setDropShadow} /></div>
                     {!dropShadowAllSides && (
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <Label className="text-xs uppercase opacity-60">Angle</Label>
-                          <span className="text-xs font-mono opacity-60">{dropShadowAngle}°</span>
-                        </div>
-                        <Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} min={0} max={360} />
-                      </div>
+                      <div className="space-y-2"><Label className="text-xs uppercase opacity-60">Angle</Label><div className="flex items-center gap-4"><Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} min={0} max={360} className="flex-1" /><NumericInput value={dropShadowAngle} onChange={setDropShadowAngle} suffix="°" /></div></div>
                     )}
-                    <div className="flex gap-2 items-center">
-                       <Label className="text-xs uppercase opacity-60 w-12">Color</Label>
-                       <input type="color" value={dropShadowColor} onChange={(e) => setDropShadowColor(e.target.value)} className="w-6 h-6 rounded shrink-0 cursor-pointer" />
-                    </div>
+                    <div className="flex gap-2 items-center"><Label className="text-xs uppercase opacity-60 w-12">Color</Label><input type="color" value={dropShadowColor} onChange={(e) => setDropShadowColor(e.target.value)} className="w-6 h-6 rounded shrink-0 cursor-pointer" /></div>
                   </div>
-                  <div className="space-y-4 border-t border-border/10 pt-4">
-                    <Label className="text-sm font-bold uppercase">Inner Glow</Label>
-                    <Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} min={0} max={100} />
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <Label className="text-xs uppercase opacity-60">Angle</Label>
-                        <span className="text-xs font-mono opacity-60">{innerGlowAngle}°</span>
-                      </div>
-                      <Slider value={[innerGlowAngle]} onValueChange={(v) => setInnerGlowAngle(v[0])} min={0} max={360} />
-                    </div>
+                  <div className="space-y-4 border-t border-border/10 pt-4"><Label className="text-sm font-bold uppercase">Inner Glow</Label><div className="flex items-center gap-4"><Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} min={0} max={100} className="flex-1" /><NumericInput value={innerGlow} onChange={setInnerGlow} /></div>
+                    <div className="space-y-2"><Label className="text-xs uppercase opacity-60">Angle</Label><div className="flex items-center gap-4"><Slider value={[innerGlowAngle]} onValueChange={(v) => setInnerGlowAngle(v[0])} min={0} max={360} className="flex-1" /><NumericInput value={innerGlowAngle} onChange={setInnerGlowAngle} suffix="°" /></div></div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -545,70 +481,21 @@ const Index = () => {
                 <AccordionContent className="pt-4 space-y-6">
                    {mode === "mockup" ? (
                      <div className="space-y-6">
-                        <div className="space-y-3"><div className="flex justify-between"><Label className="text-sm uppercase font-bold">Scale</Label><span className="text-sm font-mono">{deviceScale}%</span></div><Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} /></div>
-                        <div className="space-y-3">
-                          <Label className="text-sm uppercase font-bold">Canvas Offset</Label>
-                          <Slider value={[canvasX]} onValueChange={(v) => setCanvasX(v[0])} min={-800} max={800} />
-                          <Slider value={[canvasY]} onValueChange={(v) => setCanvasY(v[0])} min={-800} max={800} />
-                          <Button variant="outline" size="sm" className="w-full h-7 text-xs font-bold gap-2" onClick={() => { setCanvasX(0); setCanvasY(0); }}><Crosshair className="w-3 h-3" /> Center Position</Button>
-                        </div>
+                        <div className="space-y-3"><Label className="text-sm uppercase font-bold">Scale</Label><div className="flex items-center gap-4"><Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} className="flex-1" /><NumericInput value={deviceScale} onChange={setDeviceScale} suffix="%" /></div></div>
+                        <div className="space-y-4 pt-2 border-t border-border/10"><Label className="text-sm uppercase font-bold">Canvas Offset</Label><div className="space-y-3">
+                              <div className="flex items-center gap-4"><Slider value={[canvasX]} onValueChange={(v) => setCanvasX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={canvasX} onChange={setCanvasX} /></div>
+                              <div className="flex items-center gap-4"><Slider value={[canvasY]} onValueChange={(v) => setCanvasY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={canvasY} onChange={setCanvasY} /></div>
+                          </div>
+                          <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold gap-2" onClick={() => { setCanvasX(0); setCanvasY(0); }}><Crosshair className="w-3 h-3" /> Center Position</Button></div>
                      </div>
                    ) : (
                      <div className="space-y-6">
-                        <div className="space-y-3">
-                          <Label className="text-sm font-black uppercase text-primary">Easing Curve</Label>
-                          <Select value={animEasing} onValueChange={setAnimEasing}>
-                            <SelectTrigger className="h-10 rounded-xl font-bold text-sm"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="ease-in-out">Easy Ease</SelectItem>
-                              <SelectItem value="ease-in">Ease In</SelectItem>
-                              <SelectItem value="ease-out">Ease Out</SelectItem>
-                              <SelectItem value="bouncy">Bouncy</SelectItem>
-                              <SelectItem value="linear">Linear</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center"><Label className="text-sm uppercase font-bold">Duration</Label><span className="text-sm font-mono">{animDuration}s</span></div>
-                            <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.1} />
-                        </div>
-                        <div className="space-y-2 pt-2 border-t border-border/20">
-                          <Label className="text-sm uppercase opacity-60 font-bold">Frame Controls</Label>
-                          <div className="space-y-6">
-                            <div className="space-y-3">
-                               <div className="flex justify-between items-center">
-                                 <Label className="text-sm font-bold uppercase">Start Frame</Label>
-                                 <Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button>
-                               </div>
-                               <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} />
-                               <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
-                               <div className="space-y-1">
-                                  <div className="flex justify-between items-center"><Label className="text-sm uppercase opacity-60">Scale</Label><span className="text-sm font-mono opacity-60">{animStartScale}%</span></div>
-                                  <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} />
-                               </div>
-                               <div className="space-y-1">
-                                  <div className="flex justify-between items-center"><Label className="text-sm uppercase opacity-60">Rotation</Label><span className="text-sm font-mono opacity-60">{animStartRot}°</span></div>
-                                  <Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} />
-                               </div>
-                            </div>
-                            <div className="space-y-3 border-t border-border/10 pt-4">
-                               <div className="flex justify-between items-center">
-                                 <Label className="text-sm font-bold uppercase">End Frame</Label>
-                                 <Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button>
-                               </div>
-                               <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} />
-                               <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
-                               <div className="space-y-1">
-                                  <div className="flex justify-between items-center"><Label className="text-sm uppercase opacity-60">Scale</Label><span className="text-sm font-mono opacity-60">{animEndScale}%</span></div>
-                                  <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} />
-                               </div>
-                               <div className="space-y-1">
-                                  <div className="flex justify-between items-center"><Label className="text-sm uppercase opacity-60">Rotation</Label><span className="text-sm font-mono opacity-60">{animEndRot}°</span></div>
-                                  <Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} />
-                               </div>
-                            </div>
-                          </div>
-                        </div>
+                        <div className="space-y-3"><Label className="text-sm font-black uppercase text-primary">Easing Curve</Label><Select value={animEasing} onValueChange={setAnimEasing}><SelectTrigger className="h-10 rounded-xl font-bold text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ease-in-out">Easy Ease</SelectItem><SelectItem value="ease-in">Ease In</SelectItem><SelectItem value="ease-out">Ease Out</SelectItem><SelectItem value="bouncy">Bouncy</SelectItem><SelectItem value="linear">Linear</SelectItem></SelectContent></Select></div>
+                        <div className="space-y-3"><Label className="text-sm uppercase font-bold">Duration</Label><div className="flex items-center gap-4"><Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.1} className="flex-1" /><NumericInput value={animDuration} onChange={setAnimDuration} suffix="s" /></div></div>
+                        <div className="space-y-2 pt-2 border-t border-border/20"><Label className="text-sm uppercase opacity-60 font-bold">Frame Controls</Label><div className="space-y-6">
+                            <div className="space-y-3"><div className="flex justify-between items-center"><Label className="text-sm font-bold uppercase">Start Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button></div><div className="space-y-2"><div className="flex items-center gap-3"><Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animStartX} onChange={setAnimStartX} /></div><div className="flex items-center gap-3"><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animStartY} onChange={setAnimStartY} /></div></div><div className="space-y-1"><Label className="text-sm uppercase opacity-60">Scale & Rotation</Label><div className="flex items-center gap-3"><Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} className="flex-1" /><NumericInput value={animStartScale} onChange={setAnimStartScale} suffix="%" /></div><div className="flex items-center gap-3"><Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} className="flex-1" /><NumericInput value={animStartRot} onChange={setAnimStartRot} suffix="°" /></div></div></div>
+                            <div className="space-y-3 border-t border-border/10 pt-4"><div className="flex justify-between items-center"><Label className="text-sm font-bold uppercase">End Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button></div><div className="space-y-2"><div className="flex items-center gap-3"><Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animEndX} onChange={setAnimEndX} /></div><div className="flex items-center gap-3"><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animEndY} onChange={setAnimEndY} /></div></div><div className="space-y-1"><Label className="text-sm uppercase opacity-60">Scale & Rotation</Label><div className="flex items-center gap-3"><Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} className="flex-1" /><NumericInput value={animEndScale} onChange={setAnimEndScale} suffix="%" /></div><div className="flex items-center gap-3"><Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} className="flex-1" /><NumericInput value={animEndRot} onChange={setAnimEndRot} suffix="°" /></div></div></div>
+                          </div></div>
                      </div>
                    )}
                 </AccordionContent>
@@ -644,10 +531,13 @@ const Index = () => {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <Label className="text-sm font-black tracking-widest text-primary uppercase opacity-70">Animation Scrubber</Label>
-                    <span className="text-xl font-mono font-bold leading-none">{(scrubProgress || 0).toFixed(1)}%</span>
+                    <span className="text-2xl font-mono font-bold leading-none">{(scrubProgress || 0).toFixed(1)}%</span>
                   </div>
                 </div>
-                <div className="px-2"><Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} className="h-4" /></div>
+                <div className="px-2 flex items-center gap-4">
+                    <Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} className="flex-1 h-4" />
+                    <NumericInput value={parseFloat(scrubProgress.toFixed(1))} onChange={setScrubProgress} suffix="%" />
+                </div>
               </div>
             </div>
           )}
