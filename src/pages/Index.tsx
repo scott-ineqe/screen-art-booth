@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom"; // Added for the unlock mechanism
 import { toPng, toJpeg, toSvg, toCanvas } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -51,6 +52,26 @@ const loadGifJs = async () => {
 };
 
 const Index = () => {
+  // --- LOCK MECHANISM START ---
+  const [searchParams] = useSearchParams();
+  const [isDev, setIsDev] = useState(() => {
+    return localStorage.getItem("dev_mode") === "true";
+  });
+
+  useEffect(() => {
+    const devParam = searchParams.get("dev");
+    if (devParam === "true") {
+      setIsDev(true);
+      localStorage.setItem("dev_mode", "true");
+      toast.success("Developer Mode Unlocked");
+    } else if (devParam === "false") {
+      setIsDev(false);
+      localStorage.setItem("dev_mode", "false");
+      toast.info("Developer Mode Locked");
+    }
+  }, [searchParams]);
+  // --- LOCK MECHANISM END ---
+
   const [mode, setMode] = useState<AppMode>("mockup");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [device, setDevice] = useState<DeviceType>("iphone17");
@@ -132,7 +153,6 @@ const Index = () => {
     root.classList.add(theme);
   }, [theme]);
 
-  // Sync export format when switching modes
   useEffect(() => {
     if (mode === "animation") setExportFormat("video");
     else setExportFormat("png");
@@ -275,7 +295,13 @@ const Index = () => {
       const pixelRatio = parseFloat(exportQuality);
       let effectiveBgColor = (exportFormat === "jpeg") ? ((transparent || bgType !== "solid") ? "#ffffff" : bgColor) : (transparent ? "rgba(0,0,0,0)" : (bgType === "solid" ? bgColor : "rgba(0,0,0,0)"));
       
-      const baseExportOptions = { cacheBust: true, backgroundColor: effectiveBgColor, width: CANVAS_WIDTH, height: CANVAS_HEIGHT, style: { transform: 'none' } };
+      const baseExportOptions = { 
+        cacheBust: true, 
+        backgroundColor: effectiveBgColor, 
+        width: CANVAS_WIDTH, 
+        height: CANVAS_HEIGHT, 
+        style: { transform: 'none' } 
+      };
 
       if (exportFormat === "video" || exportFormat === "gif") {
         const isGif = exportFormat === "gif";
@@ -299,10 +325,20 @@ const Index = () => {
           await loadGifJs();
           const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
           const workerUrl = URL.createObjectURL(await workerReq.blob());
-          const gif = new (window as any).GIF({ workers: 4, quality: 2, width: frames[0].width, height: frames[0].height, workerScript: workerUrl, transparent: transparent ? "rgba(0,0,0,0)" : null });
+          const gif = new (window as any).GIF({ 
+            workers: 4, 
+            quality: 2, 
+            width: frames[0].width, 
+            height: frames[0].height, 
+            workerScript: workerUrl, 
+            transparent: transparent ? "rgba(0,0,0,0)" : null 
+          });
           frames.forEach(frame => gif.addFrame(frame, { delay: 1000 / fps, copy: true }));
           gif.on('finished', (blob: Blob) => {
-            const link = document.createElement('a'); link.download = `booth-art-${Date.now()}.gif`; link.href = URL.createObjectURL(blob); link.click();
+            const link = document.createElement('a'); 
+            link.download = `booth-art-${Date.now()}.gif`; 
+            link.href = URL.createObjectURL(blob); 
+            link.click();
             setExporting(false);
           });
           gif.render();
@@ -322,7 +358,10 @@ const Index = () => {
           recorder.ondataavailable = e => chunks.push(e.data);
           recorder.onstop = () => {
             const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-            const link = document.createElement('a'); link.download = `booth-art-${Date.now()}.${ext}`; link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); link.click();
+            const link = document.createElement('a'); 
+            link.download = `booth-art-${Date.now()}.${ext}`; 
+            link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); 
+            link.click();
             setExporting(false);
           };
           recorder.start();
@@ -347,11 +386,14 @@ const Index = () => {
       } else {
         const imageOptions = { ...baseExportOptions, pixelRatio };
         let dataUrl = (exportFormat === "jpeg") ? await toJpeg(canvasRef.current!, { ...imageOptions, quality: 0.98 }) : (exportFormat === "svg" ? await toSvg(canvasRef.current!, imageOptions) : await toPng(canvasRef.current!, imageOptions));
-        const link = document.createElement("a"); link.download = `booth-art-${Date.now()}.${exportFormat}`; link.href = dataUrl; link.click();
+        const link = document.createElement("a"); 
+        link.download = `booth-art-${Date.now()}.${exportFormat}`; 
+        link.href = dataUrl; 
+        link.click();
         setExporting(false);
       }
-    } catch (err) { console.error(err); setExporting(false); toast.error("Export failed. Check permissions."); }
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, bgType, bgImage, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, getInterpolatedTransform]);
+    } catch (err) { console.error(err); setExporting(false); toast.error("Export failed. Please check browser permissions."); }
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, bgType, bgImage, getInterpolatedTransform]);
 
   const NumericInput = ({ value, onChange, suffix = "" }: { value: number, onChange: (val: number) => void, suffix?: string }) => (
     <div className="relative w-16 group shrink-0">
@@ -386,12 +428,14 @@ const Index = () => {
 
         <Tabs value={mode} onValueChange={(v: any) => setMode(v)} className="w-[360px]">
           <TabsList className="grid w-full grid-cols-2 bg-muted/40 p-1 rounded-full border border-border/40">
-            <TabsTrigger value="mockup" className="rounded-full gap-2 transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs">
+            <TabsTrigger value="mockup" className="rounded-full gap-2 transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
               <Monitor className="w-4 h-4" /> Mock-up
             </TabsTrigger>
-            <TabsTrigger value="animation" className="rounded-full gap-2 transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs">
-              <Video className="w-4 h-4" /> Animation
-            </TabsTrigger>
+            {isDev && (
+              <TabsTrigger value="animation" className="rounded-full gap-2 transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
+                <Video className="w-4 h-4" /> Animation
+              </TabsTrigger>
+            )}
           </TabsList>
         </Tabs>
 
@@ -427,7 +471,7 @@ const Index = () => {
            <div className="w-[320px] space-y-4 text-center">
               <div className="flex justify-between items-end"><Label className="text-xl font-black uppercase tracking-tighter text-primary">{exportStatus}</Label><span className="text-sm font-mono">{exportProgress}%</span></div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border/40"><div className="h-full bg-primary transition-all duration-300" style={{ width: `${exportProgress}%` }} /></div>
-              <p className="text-xs uppercase font-bold opacity-40">Please keep this tab active.</p>
+              <p className="text-sm uppercase font-bold opacity-40">Please keep this tab active.</p>
            </div>
         </div>
       )}
@@ -538,7 +582,7 @@ const Index = () => {
                     )}
                   </div>
                   <div className="space-y-4 border-t border-border/10 pt-4">
-                    <Label className="text-sm font-bold uppercase">Custom Text</Label>
+                    <Label className="text-sm font-bold uppercase">Custom Text (Copyright)</Label>
                     <Input placeholder="Enter copyright text..." value={overlayText} onChange={(e) => setOverlayText(e.target.value)} className="h-10 text-sm" />
                     {overlayText && (
                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
@@ -577,20 +621,12 @@ const Index = () => {
                     <div className="flex items-center justify-between"><Label className="text-sm font-bold uppercase">Drop Shadow</Label><div className="flex items-center gap-2"><Label className="text-xs uppercase opacity-60">All Sides</Label><Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} /></div></div>
                     <div className="flex items-center gap-4"><Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} min={0} max={100} className="flex-1" /><NumericInput value={dropShadow} onChange={setDropShadow} /></div>
                     {!dropShadowAllSides && (
-                      <div className="space-y-2">
-                        <Label className="text-xs uppercase opacity-60">Angle</Label>
-                        <div className="flex items-center gap-4"><Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} min={0} max={360} className="flex-1" /><NumericInput value={dropShadowAngle} onChange={setDropShadowAngle} suffix="°" /></div>
-                      </div>
+                      <div className="space-y-2"><Label className="text-xs uppercase opacity-60">Angle</Label><div className="flex items-center gap-4"><Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} min={0} max={360} className="flex-1" /><NumericInput value={dropShadowAngle} onChange={setDropShadowAngle} suffix="°" /></div></div>
                     )}
                     <div className="flex gap-2 items-center"><Label className="text-xs uppercase opacity-60 w-12">Color</Label><input type="color" value={dropShadowColor} onChange={(e) => setDropShadowColor(e.target.value)} className="w-6 h-6 rounded shrink-0 cursor-pointer" /></div>
                   </div>
-                  <div className="space-y-4 border-t border-border/10 pt-4">
-                    <Label className="text-sm font-bold uppercase">Inner Glow</Label>
-                    <div className="flex items-center gap-4"><Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} min={0} max={100} className="flex-1" /><NumericInput value={innerGlow} onChange={setInnerGlow} /></div>
-                    <div className="space-y-2">
-                      <Label className="text-xs uppercase opacity-60">Angle</Label>
-                      <div className="flex items-center gap-4"><Slider value={[innerGlowAngle]} onValueChange={(v) => setInnerGlowAngle(v[0])} min={0} max={360} className="flex-1" /><NumericInput value={innerGlowAngle} onChange={setInnerGlowAngle} suffix="°" /></div>
-                    </div>
+                  <div className="space-y-4 border-t border-border/10 pt-4"><Label className="text-sm font-bold uppercase">Inner Glow</Label><div className="flex items-center gap-4"><Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} min={0} max={100} className="flex-1" /><NumericInput value={innerGlow} onChange={setInnerGlow} /></div>
+                    <div className="space-y-2"><Label className="text-xs uppercase opacity-60">Angle</Label><div className="flex items-center gap-4"><Slider value={[innerGlowAngle]} onValueChange={(v) => setInnerGlowAngle(v[0])} min={0} max={360} className="flex-1" /><NumericInput value={innerGlowAngle} onChange={setInnerGlowAngle} suffix="°" /></div></div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -601,66 +637,20 @@ const Index = () => {
                    {mode === "mockup" ? (
                      <div className="space-y-6">
                         <div className="space-y-3"><Label className="text-sm uppercase font-bold">Scale</Label><div className="flex items-center gap-4"><Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} className="flex-1" /><NumericInput value={deviceScale} onChange={setDeviceScale} suffix="%" /></div></div>
-                        <div className="space-y-4 pt-2 border-t border-border/10">
-                          <Label className="text-sm uppercase font-bold">Canvas Offset</Label>
-                          <div className="space-y-3">
-                              <div className="space-y-1">
-                                <Label className="text-[10px] uppercase opacity-50">Horizontal Position</Label>
-                                <div className="flex items-center gap-4"><Slider value={[canvasX]} onValueChange={(v) => setCanvasX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={canvasX} onChange={setCanvasX} /></div>
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px] uppercase opacity-50">Vertical Position</Label>
-                                <div className="flex items-center gap-4"><Slider value={[canvasY]} onValueChange={(v) => setCanvasY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={canvasY} onChange={setCanvasY} /></div>
-                              </div>
+                        <div className="space-y-4 pt-2 border-t border-border/10"><Label className="text-sm uppercase font-bold">Canvas Offset</Label><div className="space-y-3">
+                              <div className="flex items-center gap-4"><Slider value={[canvasX]} onValueChange={(v) => setCanvasX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={canvasX} onChange={setCanvasX} /></div>
+                              <div className="flex items-center gap-4"><Slider value={[canvasY]} onValueChange={(v) => setCanvasY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={canvasY} onChange={setCanvasY} /></div>
                           </div>
-                          <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold gap-2" onClick={() => { setCanvasX(0); setCanvasY(0); }}><Crosshair className="w-3 h-3" /> Center Position</Button>
-                        </div>
+                          <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold gap-2" onClick={() => { setCanvasX(0); setCanvasY(0); }}><Crosshair className="w-3 h-3" /> Center Position</Button></div>
                      </div>
                    ) : (
                      <div className="space-y-6">
                         <div className="space-y-3"><Label className="text-sm font-black uppercase text-primary">Easing Curve</Label><Select value={animEasing} onValueChange={setAnimEasing}><SelectTrigger className="h-10 rounded-xl font-bold text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ease-in-out">Easy Ease</SelectItem><SelectItem value="ease-in">Ease In</SelectItem><SelectItem value="ease-out">Ease Out</SelectItem><SelectItem value="bouncy">Bouncy</SelectItem><SelectItem value="linear">Linear</SelectItem></SelectContent></Select></div>
                         <div className="space-y-3"><Label className="text-sm uppercase font-bold">Duration</Label><div className="flex items-center gap-4"><Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.1} className="flex-1" /><NumericInput value={animDuration} onChange={setAnimDuration} suffix="s" /></div></div>
-                        <div className="space-y-2 pt-2 border-t border-border/20">
-                          <Label className="text-xs uppercase opacity-60 font-bold">Frame Controls</Label>
-                          <div className="space-y-6">
-                            <div className="space-y-3">
-                               <div className="flex justify-between items-center"><Label className="text-sm font-bold uppercase">Start Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
-                               <div className="space-y-2">
-                                  <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase opacity-50">Horizontal Position</Label>
-                                    <div className="flex items-center gap-3"><Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animStartX} onChange={setAnimStartX} /></div>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase opacity-50">Vertical Position</Label>
-                                    <div className="flex items-center gap-3"><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animStartY} onChange={setAnimStartY} /></div>
-                                  </div>
-                               </div>
-                               <div className="space-y-1 pt-2">
-                                  <Label className="text-xs uppercase opacity-60">Scale & Rotation</Label>
-                                  <div className="flex items-center gap-3"><Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} className="flex-1" /><NumericInput value={animStartScale} onChange={setAnimStartScale} suffix="%" /></div>
-                                  <div className="flex items-center gap-3"><Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} className="flex-1" /><NumericInput value={animStartRot} onChange={setAnimStartRot} suffix="°" /></div>
-                               </div>
-                            </div>
-                            <div className="space-y-3 border-t border-border/10 pt-4">
-                               <div className="flex justify-between items-center"><Label className="text-sm font-bold uppercase">End Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
-                               <div className="space-y-2">
-                                  <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase opacity-50">Horizontal Position</Label>
-                                    <div className="flex items-center gap-3"><Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animEndX} onChange={setAnimEndX} /></div>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase opacity-50">Vertical Position</Label>
-                                    <div className="flex items-center gap-3"><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animEndY} onChange={setAnimEndY} /></div>
-                                  </div>
-                               </div>
-                               <div className="space-y-1 pt-2">
-                                  <Label className="text-xs uppercase opacity-60">Scale & Rotation</Label>
-                                  <div className="flex items-center gap-3"><Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} className="flex-1" /><NumericInput value={animEndScale} onChange={setAnimEndScale} suffix="%" /></div>
-                                  <div className="flex items-center gap-3"><Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} className="flex-1" /><NumericInput value={animEndRot} onChange={setAnimEndRot} suffix="°" /></div>
-                               </div>
-                            </div>
-                          </div>
-                        </div>
+                        <div className="space-y-2 pt-2 border-t border-border/20"><Label className="text-sm uppercase opacity-60 font-bold">Frame Controls</Label><div className="space-y-6">
+                            <div className="space-y-3"><div className="flex justify-between items-center"><Label className="text-sm font-bold uppercase">Start Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button></div><div className="space-y-2"><div className="flex items-center gap-3"><Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animStartX} onChange={setAnimStartX} /></div><div className="flex items-center gap-3"><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animStartY} onChange={setAnimStartY} /></div></div><div className="space-y-1"><Label className="text-sm uppercase opacity-60">Scale & Rotation</Label><div className="flex items-center gap-3"><Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} className="flex-1" /><NumericInput value={animStartScale} onChange={setAnimStartScale} suffix="%" /></div><div className="flex items-center gap-3"><Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} className="flex-1" /><NumericInput value={animStartRot} onChange={setAnimStartRot} suffix="°" /></div></div></div>
+                            <div className="space-y-3 border-t border-border/10 pt-4"><div className="flex justify-between items-center"><Label className="text-sm font-bold uppercase">End Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button></div><div className="space-y-2"><div className="flex items-center gap-3"><Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animEndX} onChange={setAnimEndX} /></div><div className="flex items-center gap-3"><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animEndY} onChange={setAnimEndY} /></div></div><div className="space-y-1"><Label className="text-sm uppercase opacity-60">Scale & Rotation</Label><div className="flex items-center gap-3"><Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} className="flex-1" /><NumericInput value={animEndScale} onChange={setAnimEndScale} suffix="%" /></div><div className="flex items-center gap-3"><Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} className="flex-1" /><NumericInput value={animEndRot} onChange={setAnimEndRot} suffix="°" /></div></div></div>
+                          </div></div>
                      </div>
                    )}
                 </AccordionContent>
@@ -674,11 +664,8 @@ const Index = () => {
             {transparent && <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
             <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
               <div ref={canvasRef} className={cn("w-full h-full relative overflow-hidden pointer-events-auto", !transparent && "bg-background")} style={getCanvasBackgroundStyles()}>
-                
-                {/* OVERLAYS (Logo and Text) */}
                 {logo && <img src={logo} alt="Logo" className="absolute z-40 object-contain pointer-events-none" style={{ ...getCornerStyles(logoCorner, logoPadding), width: logoWidth, height: 'auto' }} />}
                 {overlayText && <div className="absolute z-40 pointer-events-none break-words font-medium leading-tight" style={{ ...getCornerStyles(overlayTextCorner, overlayTextPadding), width: overlayTextWidth, color: overlayTextColor, fontSize: overlayTextSize }}>{overlayText}</div>}
-
                 <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
                   style={{ transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, transition: 'none' }}>
                   <div className="pointer-events-auto">
