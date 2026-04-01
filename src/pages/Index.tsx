@@ -251,7 +251,18 @@ const Index = () => {
     try {
       const pixelRatio = parseFloat(exportQuality);
       let effectiveBgColor = (exportFormat === "jpeg") ? ((transparent || bgType !== "solid") ? "#ffffff" : bgColor) : (transparent ? "rgba(0,0,0,0)" : (bgType === "solid" ? bgColor : "rgba(0,0,0,0)"));
-      const baseExportOptions = { cacheBust: true, backgroundColor: effectiveBgColor, width: CANVAS_WIDTH, height: CANVAS_HEIGHT, style: { transform: 'none' } };
+      
+      // Force even dimensions for QuickTime/H.264 compatibility
+      const exportWidth = Math.floor((CANVAS_WIDTH * pixelRatio) / 2) * 2;
+      const exportHeight = Math.floor((CANVAS_HEIGHT * pixelRatio) / 2) * 2;
+      
+      const baseExportOptions = { 
+        cacheBust: true, 
+        backgroundColor: effectiveBgColor, 
+        width: exportWidth / pixelRatio, 
+        height: exportHeight / pixelRatio, 
+        style: { transform: 'none' } 
+      };
 
       if (exportFormat === "video" || exportFormat === "gif") {
         const isGif = exportFormat === "gif";
@@ -265,7 +276,7 @@ const Index = () => {
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
             targetNode.style.transform = `translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg)`;
-            await new Promise(res => setTimeout(res, 20)); // Buffer for hardware sync
+            await new Promise(res => setTimeout(res, 25)); // Frame capture sync buffer
             frames.push(await toCanvas(el, { ...baseExportOptions, pixelRatio }));
             setExportProgress(Math.round((i / totalFrames) * 40));
         }
@@ -275,48 +286,80 @@ const Index = () => {
           await loadGifJs();
           const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
           const workerUrl = URL.createObjectURL(await workerReq.blob());
-          const gif = new (window as any).GIF({ workers: 4, quality: 2, width: frames[0].width, height: frames[0].height, workerScript: workerUrl, transparent: transparent ? "rgba(0,0,0,0)" : null });
+          const gif = new (window as any).GIF({ 
+            workers: 4, 
+            quality: 2, 
+            width: frames[0].width, 
+            height: frames[0].height, 
+            workerScript: workerUrl, 
+            transparent: transparent ? "rgba(0,0,0,0)" : null 
+          });
           frames.forEach(frame => gif.addFrame(frame, { delay: 1000 / fps, copy: true }));
           gif.on('finished', (blob: Blob) => {
-            const link = document.createElement('a'); link.download = `booth-export.gif`; link.href = URL.createObjectURL(blob); link.click();
+            const link = document.createElement('a'); 
+            link.download = `booth-art-${Date.now()}.gif`; 
+            link.href = URL.createObjectURL(blob); 
+            link.click();
             setExporting(false);
           });
           gif.render();
         } else {
           setExportStatus("Encoding MP4...");
-          const outCanvas = document.createElement('canvas'); outCanvas.width = frames[0].width; outCanvas.height = frames[0].height;
+          const outCanvas = document.createElement('canvas'); 
+          outCanvas.width = frames[0].width; 
+          outCanvas.height = frames[0].height;
           const ctx = outCanvas.getContext('2d')!;
           
           // Use H.264 if available for QuickTime compatibility
-          const videoMimeTypes = ['video/mp4;codecs=h264', 'video/webm;codecs=h264', 'video/webm'];
+          const videoMimeTypes = ['video/mp4;codecs=avc1', 'video/webm;codecs=h264', 'video/webm'];
           const mimeType = videoMimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
           
           const stream = outCanvas.captureStream(fps);
-          const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
+          const recorder = new MediaRecorder(stream, { 
+            mimeType, 
+            videoBitsPerSecond: 8000000 // 8Mbps high quality
+          });
+          
           const chunks: BlobPart[] = [];
           recorder.ondataavailable = e => chunks.push(e.data);
           recorder.onstop = () => {
             const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-            const link = document.createElement('a'); link.download = `booth-export.${ext}`; link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); link.click();
+            const link = document.createElement('a'); 
+            link.download = `booth-art-${Date.now()}.${ext}`; 
+            link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); 
+            link.click();
             setExporting(false);
           };
           
           recorder.start();
           let f = 0;
-          const int = setInterval(() => {
-            if (f >= frames.length) { clearInterval(int); setTimeout(() => recorder.stop(), 500); return; }
-            ctx.clearRect(0,0,outCanvas.width,outCanvas.height); ctx.drawImage(frames[f++],0,0);
+          const captureLoop = () => {
+            if (f >= frames.length) { 
+              setTimeout(() => recorder.stop(), 500); 
+              return; 
+            }
+            ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
+            ctx.drawImage(frames[f++], 0, 0);
             setExportProgress(40 + Math.round((f / frames.length) * 60));
-          }, 1000/fps);
+            requestAnimationFrame(captureLoop);
+          };
+          captureLoop();
         }
       } else {
         const imageOptions = { ...baseExportOptions, pixelRatio };
         let dataUrl = (exportFormat === "jpeg") ? await toJpeg(canvasRef.current!, { ...imageOptions, quality: 0.98 }) : (exportFormat === "svg" ? await toSvg(canvasRef.current!, imageOptions) : await toPng(canvasRef.current!, imageOptions));
-        const link = document.createElement("a"); link.download = `booth-export.${exportFormat}`; link.href = dataUrl; link.click();
+        const link = document.createElement("a"); 
+        link.download = `booth-art-${Date.now()}.${exportFormat}`; 
+        link.href = dataUrl; 
+        link.click();
         setExporting(false);
       }
-    } catch (err) { console.error(err); setExporting(false); toast.error("Export failed."); }
-  }, [transparent, bgColor, bgType, bgImage, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, CANVAS_WIDTH, CANVAS_HEIGHT, getInterpolatedTransform]);
+    } catch (err) { 
+        console.error(err); 
+        setExporting(false); 
+        toast.error("Export failed. Please check browser permissions."); 
+    }
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, bgType, bgImage, getInterpolatedTransform]);
 
   const glassCard = "bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-4 shadow-xl shadow-black/5";
 
@@ -470,16 +513,36 @@ const Index = () => {
                           <Label className="text-[9px] uppercase opacity-40 font-bold">Frame Controls</Label>
                           <div className="space-y-6">
                             <div className="space-y-3">
-                               <div className="flex justify-between items-center"><Label className="text-[10px] font-bold uppercase">Start Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
-                               <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} /><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
-                               <div className="space-y-1"><div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Scale</Label><span className="text-[8px] font-mono opacity-30">{animStartScale}%</span></div><Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} /></div>
-                               <div className="space-y-1"><div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Rotation</Label><span className="text-[8px] font-mono opacity-30">{animStartRot}°</span></div><Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} /></div>
+                               <div className="flex justify-between items-center">
+                                 <Label className="text-[10px] font-bold uppercase">Start Frame</Label>
+                                 <Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button>
+                               </div>
+                               <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} />
+                               <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
+                               <div className="space-y-1">
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Scale</Label><span className="text-[8px] font-mono opacity-30">{animStartScale}%</span></div>
+                                  <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} />
+                               </div>
+                               <div className="space-y-1">
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Rotation</Label><span className="text-[8px] font-mono opacity-30">{animStartRot}°</span></div>
+                                  <Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} />
+                               </div>
                             </div>
                             <div className="space-y-3 border-t border-border/10 pt-4">
-                               <div className="flex justify-between items-center"><Label className="text-[10px] font-bold uppercase">End Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
-                               <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} /><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
-                               <div className="space-y-1"><div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Scale</Label><span className="text-[8px] font-mono opacity-30">{animEndScale}%</span></div><Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} /></div>
-                               <div className="space-y-1"><div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Rotation</Label><span className="text-[8px] font-mono opacity-30">{animEndRot}°</span></div><Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} /></div>
+                               <div className="flex justify-between items-center">
+                                 <Label className="text-[10px] font-bold uppercase">End Frame</Label>
+                                 <Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button>
+                               </div>
+                               <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} />
+                               <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
+                               <div className="space-y-1">
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Scale</Label><span className="text-[8px] font-mono opacity-30">{animEndScale}%</span></div>
+                                  <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} />
+                               </div>
+                               <div className="space-y-1">
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Rotation</Label><span className="text-[8px] font-mono opacity-30">{animEndRot}°</span></div>
+                                  <Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} />
+                               </div>
                             </div>
                           </div>
                         </div>
