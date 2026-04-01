@@ -23,7 +23,7 @@ import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { 
   Upload, Smartphone, ImageIcon, 
   Play, RotateCcw, Moon, Sun, Monitor, 
-  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair
+  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair, Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -272,6 +272,7 @@ const Index = () => {
         const targetNode = animTargetRef.current!;
         targetNode.style.transition = 'none';
         
+        // 1. Generate all frames off-screen
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
             targetNode.style.transform = `translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg)`;
@@ -307,10 +308,10 @@ const Index = () => {
           const outCanvas = document.createElement('canvas'); 
           
           // Force even dimensions for QuickTime/H.264 compatibility
-          const exportWidth = frames[0].width;
-          const exportHeight = frames[0].height;
-          outCanvas.width = exportWidth % 2 === 0 ? exportWidth : exportWidth - 1; 
-          outCanvas.height = exportHeight % 2 === 0 ? exportHeight : exportHeight - 1;
+          const frameWidth = frames[0].width;
+          const frameHeight = frames[0].height;
+          outCanvas.width = frameWidth % 2 === 0 ? frameWidth : frameWidth - 1; 
+          outCanvas.height = frameHeight % 2 === 0 ? frameHeight : frameHeight - 1;
           
           const ctx = outCanvas.getContext('2d')!;
           
@@ -488,6 +489,51 @@ const Index = () => {
                       </Tabs>
                     </div>
                   )}
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="effects" className="border-none">
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}>
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-bold uppercase tracking-wider">Effects</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold uppercase">Drop Shadow</Label>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[10px] uppercase opacity-60">All Sides</Label>
+                        <Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} />
+                      </div>
+                    </div>
+                    <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} min={0} max={100} />
+                    {!dropShadowAllSides && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-[10px] uppercase opacity-60">Angle</Label>
+                          <span className="text-[10px] font-mono opacity-60">{dropShadowAngle}°</span>
+                        </div>
+                        <Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} min={0} max={360} />
+                      </div>
+                    )}
+                    <div className="flex gap-2 items-center">
+                       <Label className="text-[10px] uppercase opacity-60 w-12">Color</Label>
+                       <input type="color" value={dropShadowColor} onChange={(e) => setDropShadowColor(e.target.value)} className="w-6 h-6 rounded shrink-0 cursor-pointer" />
+                    </div>
+                  </div>
+                  <div className="space-y-4 border-t border-border/10 pt-4">
+                    <Label className="text-xs font-bold uppercase">Inner Glow</Label>
+                    <Slider value={[innerGlow]} onValueChange={(v) => setInnerGlow(v[0])} min={0} max={100} />
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-[10px] uppercase opacity-60">Angle</Label>
+                        <span className="text-[10px] font-mono opacity-60">{innerGlowAngle}°</span>
+                      </div>
+                      <Slider value={[innerGlowAngle]} onValueChange={(v) => setInnerGlowAngle(v[0])} min={0} max={360} />
+                    </div>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
 
