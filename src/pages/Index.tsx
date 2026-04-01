@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { toPng, toJpeg, toSvg, toCanvas } from "html-to-image";
+import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -114,16 +114,25 @@ const Index = () => {
   const CANVAS_WIDTH = canvasDimensions.width;
   const CANVAS_HEIGHT = canvasDimensions.height;
 
+  // Reserved space height for the scrubber dashboard
+  const SCRUBBER_RESERVED_HEIGHT = 200;
+
   const calculateScale = useCallback(() => {
     if (!mainAreaRef.current) return;
     const { width, height } = mainAreaRef.current.getBoundingClientRect();
-    const padding = 160; 
-    const availableWidth = width - padding;
-    const availableHeight = height - padding;
+    
+    // Dynamically adjust padding based on mode to prevent scrubber clipping
+    const paddingX = 120;
+    const paddingY = mode === "animation" ? SCRUBBER_RESERVED_HEIGHT + 100 : 120; 
+    
+    const availableWidth = width - paddingX;
+    const availableHeight = height - paddingY;
+    
     const scaleX = availableWidth / CANVAS_WIDTH;
     const scaleY = availableHeight / CANVAS_HEIGHT;
-    setPreviewScale(Math.min(scaleX, scaleY));
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT]);
+    
+    setPreviewScale(Math.min(scaleX, scaleY, 1.0)); // Don't scale beyond 100%
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, mode]);
 
   useEffect(() => {
     calculateScale();
@@ -131,6 +140,13 @@ const Index = () => {
     if (mainAreaRef.current) observer.observe(mainAreaRef.current);
     return () => observer.disconnect();
   }, [calculateScale]);
+
+  // Clean up animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, []);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -219,7 +235,7 @@ const Index = () => {
     setScrubProgress(0);
     
     const startTime = performance.now();
-    const durationMs = (animDuration || 2) * 1000;
+    const durationMs = Math.max((animDuration || 2) * 1000, 100); // Ensure at least 100ms
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -354,7 +370,7 @@ const Index = () => {
               </AccordionItem>
 
               <AccordionItem value="appearance" className="border-none">
-                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Layers className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">{mode === "mockup" ? "Transform" : "Timeline"}</span></div></AccordionTrigger>
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Layers className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">{mode === "mockup" ? "Transform" : "Timeline Settings"}</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-6">
                    {mode === "mockup" ? (
                      <div className="space-y-6 animate-in fade-in">
@@ -370,6 +386,10 @@ const Index = () => {
                      </div>
                    ) : (
                      <div className="space-y-6 animate-in slide-in-from-left-4">
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center"><Label className="text-[10px] uppercase font-bold">Animation Duration</Label><span className="text-[10px] font-mono">{animDuration}s</span></div>
+                            <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.1} />
+                        </div>
                         <div className="space-y-6">
                            <Label className="text-[10px] font-bold uppercase opacity-60">Motion & Scale Path</Label>
                            <div className="space-y-6 px-1">
@@ -378,10 +398,7 @@ const Index = () => {
                                 <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} />
                                 <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
                                 <div className="space-y-1">
-                                  <div className="flex justify-between items-center">
-                                    <Label className="text-[8px] opacity-30 uppercase">Scale</Label>
-                                    <span className="text-[8px] opacity-30 font-mono">{animStartScale}%</span>
-                                  </div>
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] opacity-30 uppercase">Scale</Label><span className="text-[8px] opacity-30 font-mono">{animStartScale}%</span></div>
                                   <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} />
                                 </div>
                               </div>
@@ -390,10 +407,7 @@ const Index = () => {
                                 <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} />
                                 <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
                                 <div className="space-y-1">
-                                  <div className="flex justify-between items-center">
-                                    <Label className="text-[8px] opacity-30 uppercase">Scale</Label>
-                                    <span className="text-[8px] opacity-30 font-mono">{animEndScale}%</span>
-                                  </div>
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] opacity-30 uppercase">Scale</Label><span className="text-[8px] opacity-30 font-mono">{animEndScale}%</span></div>
                                   <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} />
                                 </div>
                               </div>
@@ -436,7 +450,7 @@ const Index = () => {
           </div>
 
           {mode === "animation" && (
-            <div className="w-[800px] max-w-full bg-background/80 backdrop-blur-2xl border border-white/10 p-6 rounded-[2.5rem] shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-8 duration-700 z-50">
+            <div className="w-[800px] max-w-full bg-background border border-border/60 p-6 rounded-[2.5rem] shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-8 duration-700 z-50">
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-4">
                   <Button onClick={handlePlayAnimation} variant={isPlaying ? "destructive" : "default"} className="h-12 w-12 rounded-full shadow-lg">
@@ -447,7 +461,7 @@ const Index = () => {
                   </Button>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <Label className="text-[10px] font-black tracking-widest text-primary uppercase">Timeframe Progress</Label>
+                  <Label className="text-[10px] font-black tracking-widest text-primary uppercase">Scrubber Progress</Label>
                   <span className="text-xl font-mono font-bold leading-none">{(scrubProgress || 0).toFixed(1)}%</span>
                 </div>
               </div>
