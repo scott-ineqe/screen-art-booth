@@ -23,7 +23,7 @@ import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { 
   Upload, Smartphone, ImageIcon, 
   Play, RotateCcw, Moon, Sun, Monitor, 
-  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair, Zap, Type, Layout
+  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair, Zap, Type, Layout, Boxes
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -77,6 +77,7 @@ const Index = () => {
   const [animEndScale, setAnimEndScale] = useState(90);
   const [animStartRot, setAnimStartRot] = useState(0);
   const [animEndRot, setAnimEndRot] = useState(0);
+  const [animRotDirection, setAnimRotDirection] = useState<"cw" | "ccw">("cw");
   const [animStartX, setAnimStartX] = useState(0);
   const [animStartY, setAnimStartY] = useState(0);
   const [animEndX, setAnimEndX] = useState(0);
@@ -131,6 +132,7 @@ const Index = () => {
     root.classList.add(theme);
   }, [theme]);
 
+  // Sync export format when switching modes
   useEffect(() => {
     if (mode === "animation") setExportFormat("video");
     else setExportFormat("png");
@@ -273,7 +275,13 @@ const Index = () => {
       const pixelRatio = parseFloat(exportQuality);
       let effectiveBgColor = (exportFormat === "jpeg") ? ((transparent || bgType !== "solid") ? "#ffffff" : bgColor) : (transparent ? "rgba(0,0,0,0)" : (bgType === "solid" ? bgColor : "rgba(0,0,0,0)"));
       
-      const baseExportOptions = { cacheBust: true, backgroundColor: effectiveBgColor, width: CANVAS_WIDTH, height: CANVAS_HEIGHT, style: { transform: 'none' } };
+      const baseExportOptions = { 
+        cacheBust: true, 
+        backgroundColor: effectiveBgColor, 
+        width: CANVAS_WIDTH, 
+        height: CANVAS_HEIGHT, 
+        style: { transform: 'none' } 
+      };
 
       if (exportFormat === "video" || exportFormat === "gif") {
         const isGif = exportFormat === "gif";
@@ -297,38 +305,64 @@ const Index = () => {
           await loadGifJs();
           const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
           const workerUrl = URL.createObjectURL(await workerReq.blob());
-          const gif = new (window as any).GIF({ workers: 4, quality: 2, width: frames[0].width, height: frames[0].height, workerScript: workerUrl, transparent: transparent ? "rgba(0,0,0,0)" : null });
+          const gif = new (window as any).GIF({ 
+            workers: 4, 
+            quality: 2, 
+            width: frames[0].width, 
+            height: frames[0].height, 
+            workerScript: workerUrl, 
+            transparent: transparent ? "rgba(0,0,0,0)" : null 
+          });
           frames.forEach(frame => gif.addFrame(frame, { delay: 1000 / fps, copy: true }));
           gif.on('finished', (blob: Blob) => {
-            const link = document.createElement('a'); link.download = `booth-art-${Date.now()}.gif`; link.href = URL.createObjectURL(blob); link.click();
+            const link = document.createElement('a'); 
+            link.download = `booth-art-${Date.now()}.gif`; 
+            link.href = URL.createObjectURL(blob); 
+            link.click();
             setExporting(false);
           });
           gif.render();
         } else {
           setExportStatus("Encoding MP4...");
           const outCanvas = document.createElement('canvas'); 
+          
           const frameWidth = frames[0].width;
           const frameHeight = frames[0].height;
           outCanvas.width = frameWidth % 2 === 0 ? frameWidth : frameWidth - 1; 
           outCanvas.height = frameHeight % 2 === 0 ? frameHeight : frameHeight - 1;
+          
           const ctx = outCanvas.getContext('2d')!;
+          
           const videoMimeTypes = ['video/mp4;codecs=avc1', 'video/webm;codecs=h264', 'video/webm'];
           const mimeType = videoMimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
+          
           const stream = outCanvas.captureStream(fps);
-          const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
+          const recorder = new MediaRecorder(stream, { 
+            mimeType, 
+            videoBitsPerSecond: 8000000 
+          });
+          
           const chunks: BlobPart[] = [];
           recorder.ondataavailable = e => chunks.push(e.data);
           recorder.onstop = () => {
             const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-            const link = document.createElement('a'); link.download = `booth-art-${Date.now()}.${ext}`; link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); link.click();
+            const link = document.createElement('a'); 
+            link.download = `booth-art-${Date.now()}.${ext}`; 
+            link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); 
+            link.click();
             setExporting(false);
           };
+          
           recorder.start();
           let f = 0;
           let lastTime = performance.now();
           const frameDelay = 1000 / fps; 
+
           const captureLoop = (currentTime: number) => {
-            if (f >= frames.length) { setTimeout(() => recorder.stop(), 500); return; }
+            if (f >= frames.length) { 
+              setTimeout(() => recorder.stop(), 500); 
+              return; 
+            }
             const elapsed = currentTime - lastTime;
             if (elapsed >= frameDelay) {
               ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
@@ -338,6 +372,7 @@ const Index = () => {
             }
             requestAnimationFrame(captureLoop);
           };
+          
           ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
           ctx.drawImage(frames[f++], 0, 0, outCanvas.width, outCanvas.height);
           requestAnimationFrame(captureLoop);
@@ -345,11 +380,18 @@ const Index = () => {
       } else {
         const imageOptions = { ...baseExportOptions, pixelRatio };
         let dataUrl = (exportFormat === "jpeg") ? await toJpeg(canvasRef.current!, { ...imageOptions, quality: 0.98 }) : (exportFormat === "svg" ? await toSvg(canvasRef.current!, imageOptions) : await toPng(canvasRef.current!, imageOptions));
-        const link = document.createElement("a"); link.download = `booth-art-${Date.now()}.${exportFormat}`; link.href = dataUrl; link.click();
+        const link = document.createElement("a"); 
+        link.download = `booth-art-${Date.now()}.${exportFormat}`; 
+        link.href = dataUrl; 
+        link.click();
         setExporting(false);
       }
-    } catch (err) { console.error(err); setExporting(false); toast.error("Export failed. Please check browser permissions."); }
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, bgType, bgImage, getInterpolatedTransform]);
+    } catch (err) { 
+        console.error(err); 
+        setExporting(false); 
+        toast.error("Export failed. Please check browser permissions."); 
+    }
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, transparent, bgColor, bgType, bgImage, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, getInterpolatedTransform]);
 
   const NumericInput = ({ value, onChange, suffix = "" }: { value: number, onChange: (val: number) => void, suffix?: string }) => (
     <div className="relative w-16 group shrink-0">
@@ -384,10 +426,10 @@ const Index = () => {
 
         <Tabs value={mode} onValueChange={(v: any) => setMode(v)} className="w-[360px]">
           <TabsList className="grid w-full grid-cols-2 bg-muted/40 p-1 rounded-full border border-border/40">
-            <TabsTrigger value="mockup" className="rounded-full gap-2 transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="mockup" className="rounded-full gap-2 transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs">
               <Monitor className="w-4 h-4" /> Mock-up
             </TabsTrigger>
-            <TabsTrigger value="animation" className="rounded-full gap-2 transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="animation" className="rounded-full gap-2 transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs">
               <Video className="w-4 h-4" /> Animation
             </TabsTrigger>
           </TabsList>
@@ -425,7 +467,7 @@ const Index = () => {
            <div className="w-[320px] space-y-4 text-center">
               <div className="flex justify-between items-end"><Label className="text-xl font-black uppercase tracking-tighter text-primary">{exportStatus}</Label><span className="text-sm font-mono">{exportProgress}%</span></div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border/40"><div className="h-full bg-primary transition-all duration-300" style={{ width: `${exportProgress}%` }} /></div>
-              <p className="text-sm uppercase font-bold opacity-40">Please keep this tab active.</p>
+              <p className="text-xs uppercase font-bold opacity-40">Please keep this tab active.</p>
            </div>
         </div>
       )}
@@ -451,6 +493,24 @@ const Index = () => {
                       {id.replace(/-/g, ' ')}
                     </button>
                   ))}
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="canvas" className="border-none">
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Boxes className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">Canvas Settings</span></div></AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase opacity-60">Canvas Size</Label>
+                    <Select value={canvasRatio} onValueChange={(v: any) => setCanvasRatio(v)}>
+                      <SelectTrigger className="rounded-xl h-10 text-xs font-bold"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="16:9">Landscape (16:9)</SelectItem>
+                        <SelectItem value="9:16">Vertical (9:16)</SelectItem>
+                        <SelectItem value="1:1">Square (1:1)</SelectItem>
+                        <SelectItem value="4:5">Social (1080 x 1350)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
 
@@ -493,7 +553,6 @@ const Index = () => {
               <AccordionItem value="overlays" className="border-none">
                 <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Layout className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">Overlays</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-6">
-                  {/* LOGO OVERLAY */}
                   <div className="space-y-4">
                     <Label className="text-sm font-bold uppercase">Brand Logo</Label>
                     <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
@@ -518,8 +577,6 @@ const Index = () => {
                       </div>
                     )}
                   </div>
-
-                  {/* TEXT OVERLAY */}
                   <div className="space-y-4 border-t border-border/10 pt-4">
                     <Label className="text-sm font-bold uppercase">Custom Text (Copyright)</Label>
                     <Input placeholder="Enter copyright text..." value={overlayText} onChange={(e) => setOverlayText(e.target.value)} className="h-10 text-sm" />
