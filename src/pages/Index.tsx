@@ -76,6 +76,7 @@ const Index = () => {
   const [animEndScale, setAnimEndScale] = useState(90);
   const [animStartRot, setAnimStartRot] = useState(0);
   const [animEndRot, setAnimEndRot] = useState(0);
+  const [animRotDirection, setAnimRotDirection] = useState<"cw" | "ccw">("cw");
   const [animStartX, setAnimStartX] = useState(0);
   const [animStartY, setAnimStartY] = useState(0);
   const [animEndX, setAnimEndX] = useState(0);
@@ -152,6 +153,12 @@ const Index = () => {
     if (stageRef.current) observer.observe(stageRef.current);
     return () => observer.disconnect();
   }, [calculateScale]);
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, []);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -452,15 +459,39 @@ const Index = () => {
                             <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.1} />
                         </div>
                         <div className="space-y-2 pt-2 border-t border-border/20">
-                          <Label className="text-[9px] uppercase opacity-40 font-bold">Motion Path</Label>
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                               <div className="flex justify-between items-center"><Label className="text-[8px] uppercase">Start X/Y</Label><Button variant="ghost" size="icon" className="h-4 w-4 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
-                               <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} /><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
+                          <Label className="text-[9px] uppercase opacity-40 font-bold">Frame Controls</Label>
+                          <div className="space-y-6">
+                            <div className="space-y-3">
+                               <div className="flex justify-between items-center">
+                                 <Label className="text-[10px] font-bold uppercase">Start Frame</Label>
+                                 <Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button>
+                               </div>
+                               <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} />
+                               <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
+                               <div className="space-y-1">
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Scale</Label><span className="text-[8px] font-mono opacity-30">{animStartScale}%</span></div>
+                                  <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} />
+                               </div>
+                               <div className="space-y-1">
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Rotation</Label><span className="text-[8px] font-mono opacity-30">{animStartRot}°</span></div>
+                                  <Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} />
+                               </div>
                             </div>
-                            <div className="space-y-2">
-                               <div className="flex justify-between items-center"><Label className="text-[8px] uppercase">End X/Y</Label><Button variant="ghost" size="icon" className="h-4 w-4 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
-                               <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} /><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
+                            <div className="space-y-3 border-t border-border/10 pt-4">
+                               <div className="flex justify-between items-center">
+                                 <Label className="text-[10px] font-bold uppercase">End Frame</Label>
+                                 <Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button>
+                               </div>
+                               <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} />
+                               <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
+                               <div className="space-y-1">
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Scale</Label><span className="text-[8px] font-mono opacity-30">{animEndScale}%</span></div>
+                                  <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} />
+                               </div>
+                               <div className="space-y-1">
+                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Rotation</Label><span className="text-[8px] font-mono opacity-30">{animEndRot}°</span></div>
+                                  <Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} />
+                               </div>
                             </div>
                           </div>
                         </div>
