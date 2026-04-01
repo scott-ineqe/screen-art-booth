@@ -23,7 +23,7 @@ import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { 
   Upload, Smartphone, ImageIcon, 
   Play, RotateCcw, Moon, Sun, Monitor, 
-  Layers, Sparkles, Video, Palette, Plus, Trash2, Boxes, Crosshair, Wand2
+  Layers, Sparkles, Video, Palette, Plus, Trash2, Crosshair
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -61,7 +61,6 @@ const Index = () => {
   const [previewScale, setPreviewScale] = useState(0.5);
 
   // Shadows & Glow
-  const [dropShadowEnabled, setDropShadowEnabled] = useState(true);
   const [dropShadow, setDropShadow] = useState(30);
   const [dropShadowAngle, setDropShadowAngle] = useState(180); 
   const [dropShadowAllSides, setDropShadowAllSides] = useState(false);
@@ -273,7 +272,6 @@ const Index = () => {
         const targetNode = animTargetRef.current!;
         targetNode.style.transition = 'none';
         
-        // 1. Generate all frames off-screen
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
             targetNode.style.transform = `translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg)`;
@@ -307,11 +305,16 @@ const Index = () => {
         } else {
           setExportStatus("Encoding MP4...");
           const outCanvas = document.createElement('canvas'); 
-          outCanvas.width = frames[0].width; 
-          outCanvas.height = frames[0].height;
+          
+          // Force even dimensions for QuickTime/H.264 compatibility
+          const exportWidth = frames[0].width;
+          const exportHeight = frames[0].height;
+          outCanvas.width = exportWidth % 2 === 0 ? exportWidth : exportWidth - 1; 
+          outCanvas.height = exportHeight % 2 === 0 ? exportHeight : exportHeight - 1;
+          
           const ctx = outCanvas.getContext('2d')!;
           
-          // Detect highest quality QuickTime-compatible codec available
+          // Use H.264 if available for QuickTime compatibility
           const videoMimeTypes = ['video/mp4;codecs=avc1', 'video/webm;codecs=h264', 'video/webm'];
           const mimeType = videoMimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
           
@@ -333,7 +336,6 @@ const Index = () => {
           };
           
           recorder.start();
-          
           let f = 0;
           let lastTime = performance.now();
           const frameDelay = 1000 / fps; 
@@ -343,16 +345,13 @@ const Index = () => {
               setTimeout(() => recorder.stop(), 500); 
               return; 
             }
-            
             const elapsed = currentTime - lastTime;
-            
             if (elapsed >= frameDelay) {
               ctx.clearRect(0, 0, outCanvas.width, outCanvas.height); 
               ctx.drawImage(frames[f++], 0, 0, outCanvas.width, outCanvas.height);
               setExportProgress(40 + Math.round((f / frames.length) * 60));
               lastTime = currentTime - (elapsed % frameDelay);
             }
-            
             requestAnimationFrame(captureLoop);
           };
           
@@ -402,14 +401,14 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-muted/40 rounded-full px-3 py-1 gap-2 border border-border/40 mr-2">
             <Select value={exportFormat} onValueChange={(v: any) => setExportFormat(v)}>
-              <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-[11px] font-bold"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-xs font-bold"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {mode === "mockup" ? (<><SelectItem value="png">PNG</SelectItem><SelectItem value="jpeg">JPEG</SelectItem></>) : (<><SelectItem value="video">MP4/WebM</SelectItem><SelectItem value="gif">GIF</SelectItem></>)}
               </SelectContent>
             </Select>
             <div className="w-px h-4 bg-border/40" />
             <Select value={exportQuality} onValueChange={setExportQuality}>
-              <SelectTrigger className="h-8 w-[60px] border-none bg-transparent shadow-none text-[11px] font-bold"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-[60px] border-none bg-transparent shadow-none text-xs font-bold"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="1">1x</SelectItem><SelectItem value="2">2x</SelectItem><SelectItem value="3">3x</SelectItem></SelectContent>
             </Select>
           </div>
@@ -425,9 +424,9 @@ const Index = () => {
       {exporting && (
         <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-xl flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
            <div className="w-[320px] space-y-4 text-center">
-              <div className="flex justify-between items-end"><Label className="text-xl font-black uppercase tracking-tighter text-primary">{exportStatus}</Label><span className="text-xs font-mono">{exportProgress}%</span></div>
+              <div className="flex justify-between items-end"><Label className="text-xl font-black uppercase tracking-tighter text-primary">{exportStatus}</Label><span className="text-sm font-mono">{exportProgress}%</span></div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border/40"><div className="h-full bg-primary transition-all duration-300" style={{ width: `${exportProgress}%` }} /></div>
-              <p className="text-[10px] uppercase font-bold opacity-40">Keep this tab active while we render your art.</p>
+              <p className="text-xs uppercase font-bold opacity-60">Keep this tab active while we render your art.</p>
            </div>
         </div>
       )}
@@ -436,87 +435,55 @@ const Index = () => {
         <aside className="w-[380px] shrink-0 border-r border-border/40 bg-card/20 flex flex-col overflow-y-auto custom-scrollbar">
           <div className="p-6 space-y-6">
             <div className={glassCard}>
-              <Label className="text-[11px] uppercase font-bold tracking-wider opacity-60 block mb-3">Content Asset</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider opacity-60 block mb-3">Content Asset</Label>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
               <Button variant="outline" className="w-full h-16 rounded-xl border-dashed border-2 flex flex-col gap-1" onClick={() => fileInputRef.current?.click()}>
                 <Upload className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase">{image ? "Replace Screenshot" : "Upload Screenshot"}</span>
+                <span className="text-xs font-black uppercase">{image ? "Replace Screenshot" : "Upload Screenshot"}</span>
               </Button>
             </div>
 
             <Accordion type="multiple" defaultValue={[]} className="space-y-4">
               <AccordionItem value="frame" className="border-none">
-                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Device Frame</span></div></AccordionTrigger>
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">Device Frame</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 grid grid-cols-2 gap-2">
                   {["iphone17", "ipad-air", "macbook-pro-16", "imac-24-inch", "samsung-galaxy-tab", "samsung-galaxy-phone"].map((id) => (
-                    <button key={id} onClick={() => setDevice(id as DeviceType)} className={cn("p-3 rounded-xl border transition-all text-[10px] font-black uppercase", device === id ? "bg-primary text-primary-foreground border-primary" : "bg-background/40 border-border/40")}>
+                    <button key={id} onClick={() => setDevice(id as DeviceType)} className={cn("p-3 rounded-xl border transition-all text-xs font-black uppercase", device === id ? "bg-primary text-primary-foreground border-primary" : "bg-background/40 border-border/40")}>
                       {id.replace(/-/g, ' ')}
                     </button>
                   ))}
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="effects" className="border-none">
-                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Layers className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Effects</span></div></AccordionTrigger>
-                <AccordionContent className="pt-4 space-y-6">
-                  <div className="flex items-center justify-between bg-muted/30 p-3 rounded-xl">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Enable Drop Shadow</Label>
-                    <Switch checked={dropShadowEnabled} onCheckedChange={setDropShadowEnabled} />
-                  </div>
-                  {dropShadowEnabled && (
-                    <div className="space-y-6 animate-in fade-in">
-                       <div className="flex items-center justify-between bg-muted/30 p-3 rounded-xl">
-                         <Label className="text-[10px] font-bold uppercase opacity-60">Shadow on all sides</Label>
-                         <Switch checked={dropShadowAllSides} onCheckedChange={setDropShadowAllSides} />
-                       </div>
-                       <div className="space-y-1">
-                          <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Amount</Label><span className="text-[8px] font-mono opacity-30">{dropShadow}</span></div>
-                          <Slider value={[dropShadow]} onValueChange={(v) => setDropShadow(v[0])} min={0} max={100} />
-                       </div>
-                       {!dropShadowAllSides && (
-                         <div className="space-y-1">
-                            <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Angle</Label><span className="text-[8px] font-mono opacity-30">{dropShadowAngle}°</span></div>
-                            <Slider value={[dropShadowAngle]} onValueChange={(v) => setDropShadowAngle(v[0])} min={0} max={360} />
-                         </div>
-                       )}
-                       <div className="flex items-center gap-2">
-                         <input type="color" value={dropShadowColor} onChange={(e) => setDropShadowColor(e.target.value)} className="w-8 h-8 rounded-lg cursor-pointer" />
-                         <Input value={dropShadowColor} onChange={(e) => setDropShadowColor(e.target.value)} className="font-mono h-8 text-[10px]" />
-                       </div>
-                    </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-
               <AccordionItem value="background" className="border-none">
-                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Palette className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Background</span></div></AccordionTrigger>
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Palette className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">Background</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-6">
                   <div className="flex items-center justify-between bg-muted/30 p-3 rounded-xl">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Transparent Background</Label>
+                    <Label className="text-xs font-bold uppercase opacity-60">Transparent Background</Label>
                     <Switch checked={transparent} onCheckedChange={setTransparent} />
                   </div>
                   {!transparent && (
                     <div className="space-y-4">
                       <Tabs value={bgType} onValueChange={(v: any) => setBgType(v)}>
-                        <TabsList className="w-full h-8 bg-muted/40 rounded-lg"><TabsTrigger value="solid" className="flex-1 text-[10px]">Solid</TabsTrigger><TabsTrigger value="gradient" className="flex-1 text-[10px]">Gradient</TabsTrigger><TabsTrigger value="image" className="flex-1 text-[10px]">Image</TabsTrigger></TabsList>
-                        <TabsContent value="solid" className="pt-3 flex gap-2"><input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-8 h-8 rounded-lg cursor-pointer" /><Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="font-mono h-8 text-[10px]" /></TabsContent>
+                        <TabsList className="w-full h-8 bg-muted/40 rounded-lg"><TabsTrigger value="solid" className="flex-1 text-xs">Solid</TabsTrigger><TabsTrigger value="gradient" className="flex-1 text-xs">Gradient</TabsTrigger><TabsTrigger value="image" className="flex-1 text-xs">Image</TabsTrigger></TabsList>
+                        <TabsContent value="solid" className="pt-3 flex gap-2"><input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-8 h-8 rounded-lg cursor-pointer" /><Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="font-mono h-8 text-xs" /></TabsContent>
                         <TabsContent value="gradient" className="pt-3 space-y-4">
-                          <Select value={bgGradientType} onValueChange={(v: any) => setBgGradientType(v)}><SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="linear">Linear</SelectItem><SelectItem value="radial">Radial</SelectItem></SelectContent></Select>
+                          <Select value={bgGradientType} onValueChange={(v: any) => setBgGradientType(v)}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="linear">Linear</SelectItem><SelectItem value="radial">Radial</SelectItem></SelectContent></Select>
                           <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                             {gradientStops.map((stop) => (
                               <div key={stop.id} className="flex items-center gap-2 bg-muted/20 p-2 rounded-lg">
                                 <input type="color" value={stop.color} onChange={(e) => updateGradientStop(stop.id, { color: e.target.value })} className="w-6 h-6 rounded shrink-0 cursor-pointer" />
                                 <div className="flex-1 px-2"><Slider value={[stop.stop]} onValueChange={(v) => updateGradientStop(stop.id, { stop: v[0] })} max={100} /></div>
-                                <span className="text-[9px] font-mono w-6">{stop.stop}%</span>
+                                <span className="text-xs font-mono w-8">{stop.stop}%</span>
                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive/80" onClick={() => removeGradientStop(stop.id)} disabled={gradientStops.length <= 2}><Trash2 className="w-3 h-3" /></Button>
                               </div>
                             ))}
                           </div>
-                          <Button variant="outline" size="sm" className="w-full h-7 text-[9px] font-bold" onClick={addGradientStop}><Plus className="w-3 h-3 mr-1" /> Add Color Stop</Button>
+                          <Button variant="outline" size="sm" className="w-full h-7 text-xs font-bold" onClick={addGradientStop}><Plus className="w-3 h-3 mr-1" /> Add Color Stop</Button>
                         </TabsContent>
                         <TabsContent value="image" className="pt-3 space-y-3">
                           <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgImageUpload} className="hidden" />
-                          <Button variant="outline" className="w-full h-20 rounded-xl border-dashed border-2 flex flex-col gap-1" onClick={() => bgFileInputRef.current?.click()}><ImageIcon className="w-4 h-4" /><span className="text-[10px] font-black uppercase">{bgImage ? "Change Image" : "Upload Background"}</span></Button>
+                          <Button variant="outline" className="w-full h-20 rounded-xl border-dashed border-2 flex flex-col gap-1" onClick={() => bgFileInputRef.current?.click()}><ImageIcon className="w-4 h-4" /><span className="text-xs font-black uppercase">{bgImage ? "Change Image" : "Upload Background"}</span></Button>
                         </TabsContent>
                       </Tabs>
                     </div>
@@ -525,24 +492,24 @@ const Index = () => {
               </AccordionItem>
 
               <AccordionItem value="appearance" className="border-none">
-                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Layers className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">{mode === "mockup" ? "Transform" : "Timeline Style"}</span></div></AccordionTrigger>
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Layers className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">{mode === "mockup" ? "Transform" : "Timeline Style"}</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-6">
                    {mode === "mockup" ? (
                      <div className="space-y-6">
-                        <div className="space-y-3"><div className="flex justify-between"><Label className="text-[10px] uppercase font-bold">Scale</Label><span className="text-[10px]">{deviceScale}%</span></div><Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} /></div>
+                        <div className="space-y-3"><div className="flex justify-between"><Label className="text-xs uppercase font-bold">Scale</Label><span className="text-xs font-mono">{deviceScale}%</span></div><Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} /></div>
                         <div className="space-y-3">
-                          <Label className="text-[10px] uppercase font-bold">Canvas Offset</Label>
+                          <Label className="text-xs uppercase font-bold">Canvas Offset</Label>
                           <Slider value={[canvasX]} onValueChange={(v) => setCanvasX(v[0])} min={-800} max={800} />
                           <Slider value={[canvasY]} onValueChange={(v) => setCanvasY(v[0])} min={-800} max={800} />
-                          <Button variant="outline" size="sm" className="w-full h-7 text-[9px] font-bold gap-2" onClick={() => { setCanvasX(0); setCanvasY(0); }}><Crosshair className="w-3 h-3" /> Center Position</Button>
+                          <Button variant="outline" size="sm" className="w-full h-7 text-xs font-bold gap-2" onClick={() => { setCanvasX(0); setCanvasY(0); }}><Crosshair className="w-3 h-3" /> Center Position</Button>
                         </div>
                      </div>
                    ) : (
                      <div className="space-y-6">
                         <div className="space-y-3">
-                          <Label className="text-[10px] font-black uppercase text-primary">Easing Curve</Label>
+                          <Label className="text-xs font-black uppercase text-primary">Easing Curve</Label>
                           <Select value={animEasing} onValueChange={setAnimEasing}>
-                            <SelectTrigger className="h-10 rounded-xl font-bold"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-10 rounded-xl font-bold text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="ease-in-out">Easy Ease</SelectItem>
                               <SelectItem value="ease-in">Ease In</SelectItem>
@@ -553,41 +520,41 @@ const Index = () => {
                           </Select>
                         </div>
                         <div className="space-y-3">
-                            <div className="flex justify-between items-center"><Label className="text-[10px] uppercase font-bold">Duration</Label><span className="text-[10px] font-mono">{animDuration}s</span></div>
+                            <div className="flex justify-between items-center"><Label className="text-xs uppercase font-bold">Duration</Label><span className="text-xs font-mono">{animDuration}s</span></div>
                             <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.1} />
                         </div>
                         <div className="space-y-2 pt-2 border-t border-border/20">
-                          <Label className="text-[9px] uppercase opacity-40 font-bold">Frame Controls</Label>
+                          <Label className="text-xs uppercase opacity-60 font-bold">Frame Controls</Label>
                           <div className="space-y-6">
                             <div className="space-y-3">
                                <div className="flex justify-between items-center">
-                                 <Label className="text-[10px] font-bold uppercase">Start Frame</Label>
+                                 <Label className="text-sm font-bold uppercase">Start Frame</Label>
                                  <Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button>
                                </div>
                                <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} />
                                <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Scale</Label><span className="text-[8px] font-mono opacity-30">{animStartScale}%</span></div>
+                                  <div className="flex justify-between items-center"><Label className="text-xs uppercase opacity-60">Scale</Label><span className="text-xs font-mono opacity-60">{animStartScale}%</span></div>
                                   <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} />
                                </div>
                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Rotation</Label><span className="text-[8px] font-mono opacity-30">{animStartRot}°</span></div>
+                                  <div className="flex justify-between items-center"><Label className="text-xs uppercase opacity-60">Rotation</Label><span className="text-xs font-mono opacity-60">{animStartRot}°</span></div>
                                   <Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} />
                                </div>
                             </div>
                             <div className="space-y-3 border-t border-border/10 pt-4">
                                <div className="flex justify-between items-center">
-                                 <Label className="text-[10px] font-bold uppercase">End Frame</Label>
+                                 <Label className="text-sm font-bold uppercase">End Frame</Label>
                                  <Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button>
                                </div>
                                <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} />
                                <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Scale</Label><span className="text-[8px] font-mono opacity-30">{animEndScale}%</span></div>
+                                  <div className="flex justify-between items-center"><Label className="text-xs uppercase opacity-60">Scale</Label><span className="text-xs font-mono opacity-60">{animEndScale}%</span></div>
                                   <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} />
                                </div>
                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase opacity-30">Rotation</Label><span className="text-[8px] font-mono opacity-30">{animEndRot}°</span></div>
+                                  <div className="flex justify-between items-center"><Label className="text-xs uppercase opacity-60">Rotation</Label><span className="text-xs font-mono opacity-60">{animEndRot}°</span></div>
                                   <Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} />
                                </div>
                             </div>
@@ -603,6 +570,7 @@ const Index = () => {
 
         <main className="flex-1 flex flex-col relative overflow-hidden bg-muted/5">
           <div ref={stageRef} className="flex-1 flex items-center justify-center relative overflow-hidden p-10">
+            {/* Checkerboard placed securely behind the capture zone */}
             {transparent && <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
             
             <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
@@ -610,7 +578,7 @@ const Index = () => {
                 <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
                   style={{ transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, transition: 'none' }}>
                   <div className="pointer-events-auto">
-                      <DeviceFrame device={device} image={image} dropShadow={dropShadowEnabled ? dropShadow : 0} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} dropShadowColor={dropShadowColor} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} />
+                      <DeviceFrame device={device} image={image} dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} dropShadowColor={dropShadowColor} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} />
                   </div>
                 </div>
               </div>
@@ -623,12 +591,12 @@ const Index = () => {
                 <div className="flex items-center justify-between px-2">
                   <div className="flex items-center gap-4">
                     <Button onClick={handlePlayAnimation} variant={isPlaying ? "destructive" : "default"} className="h-12 w-12 rounded-full shadow-lg">
-                      {isPlaying ? <span className="font-black text-[10px]">STOP</span> : <Play className="fill-current w-5 h-5" />}
+                      {isPlaying ? <span className="font-black text-xs">STOP</span> : <Play className="fill-current w-5 h-5" />}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => { setIsPlaying(false); setScrubProgress(0); }} className="h-10 w-10 rounded-full bg-muted/40"><RotateCcw className="w-4 h-4" /></Button>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <Label className="text-[10px] font-black tracking-widest text-primary uppercase opacity-70">Animation Scrubber</Label>
+                    <Label className="text-xs font-black tracking-widest text-primary uppercase opacity-70">Animation Scrubber</Label>
                     <span className="text-xl font-mono font-bold leading-none">{(scrubProgress || 0).toFixed(1)}%</span>
                   </div>
                 </div>
