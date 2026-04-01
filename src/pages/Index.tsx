@@ -117,7 +117,6 @@ const Index = () => {
     root.classList.add(theme);
   }, [theme]);
 
-  // Sync export format when switching modes
   useEffect(() => {
     if (mode === "animation") setExportFormat("video");
     else setExportFormat("png");
@@ -247,7 +246,7 @@ const Index = () => {
 
   const handleExport = useCallback(async () => {
     if (!canvasRef.current) return;
-    setExporting(true); setExportProgress(0); setExportStatus("Preparing Stage...");
+    setExporting(true); setExportProgress(0); setExportStatus("Preparing Frames...");
     try {
       const pixelRatio = parseFloat(exportQuality);
       let effectiveBgColor = (exportFormat === "jpeg") ? ((transparent || bgType !== "solid") ? "#ffffff" : bgColor) : (transparent ? "rgba(0,0,0,0)" : (bgType === "solid" ? bgColor : "rgba(0,0,0,0)"));
@@ -255,7 +254,7 @@ const Index = () => {
 
       if (exportFormat === "video" || exportFormat === "gif") {
         const isGif = exportFormat === "gif";
-        const fps = isGif ? 15 : 30;
+        const fps = isGif ? 15 : 30; // 30fps for smooth QuickTime playback
         const totalFrames = Math.ceil(animDuration * fps);
         const frames: HTMLCanvasElement[] = [];
         const el = canvasRef.current;
@@ -265,47 +264,74 @@ const Index = () => {
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
             targetNode.style.transform = `translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg)`;
-            await new Promise(res => setTimeout(res, 25));
-            frames.push(await toCanvas(el, { ...baseExportOptions, pixelRatio: isGif ? 0.5 : 1 }));
-            setExportProgress(Math.round((i / totalFrames) * 50));
+            await new Promise(res => setTimeout(res, 20)); // Buffer for hardware sync
+            frames.push(await toCanvas(el, { ...baseExportOptions, pixelRatio: isGif ? pixelRatio : pixelRatio }));
+            setExportProgress(Math.round((i / totalFrames) * 40));
         }
 
         if (isGif) {
-          setExportStatus("Encoding GIF...");
+          setExportStatus("Quantizing GIF Colors...");
           await loadGifJs();
           const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
           const workerUrl = URL.createObjectURL(await workerReq.blob());
-          const gif = new (window as any).GIF({ workers: 2, quality: 10, width: frames[0].width, height: frames[0].height, workerScript: workerUrl, transparent: transparent ? "rgba(0,0,0,0)" : null });
+          const gif = new (window as any).GIF({ 
+            workers: 4, 
+            quality: 2, // Best quality quantization
+            width: frames[0].width, 
+            height: frames[0].height, 
+            workerScript: workerUrl, 
+            transparent: transparent ? "rgba(0,0,0,0)" : null 
+          });
           frames.forEach(frame => gif.addFrame(frame, { delay: 1000 / fps, copy: true }));
           gif.on('finished', (blob: Blob) => {
-            const link = document.createElement('a'); link.download = `booth-animation.gif`; link.href = URL.createObjectURL(blob); link.click();
+            const link = document.createElement('a'); link.download = `booth-export.gif`; link.href = URL.createObjectURL(blob); link.click();
             setExporting(false);
           });
           gif.render();
         } else {
-          setExportStatus("Encoding Video...");
-          const outCanvas = document.createElement('canvas'); outCanvas.width = frames[0].width; outCanvas.height = frames[0].height;
+          setExportStatus("Encoding High-Bitrate Video...");
+          const outCanvas = document.createElement('canvas'); 
+          outCanvas.width = frames[0].width; outCanvas.height = frames[0].height;
           const ctx = outCanvas.getContext('2d')!;
+          
+          // Detect best compatible video format for QuickTime/Media Players
+          const videoMimeTypes = ['video/mp4;codecs=h264', 'video/webm;codecs=h264', 'video/webm'];
+          const mimeType = videoMimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
+          
           const stream = outCanvas.captureStream(fps);
-          const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+          const recorder = new MediaRecorder(stream, { 
+            mimeType, 
+            videoBitsPerSecond: 8000000 // High 8Mbps bitrate for quality
+          });
+          
           const chunks: BlobPart[] = [];
           recorder.ondataavailable = e => chunks.push(e.data);
           recorder.onstop = () => {
-            const link = document.createElement('a'); link.download = `booth-video.webm`; link.href = URL.createObjectURL(new Blob(chunks)); link.click();
+            const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+            const link = document.createElement('a'); 
+            link.download = `booth-export.${ext}`; 
+            link.href = URL.createObjectURL(new Blob(chunks, { type: mimeType })); 
+            link.click();
             setExporting(false);
           };
+          
           recorder.start();
           let f = 0;
           const int = setInterval(() => {
-            if (f >= frames.length) { clearInterval(int); recorder.stop(); return; }
-            ctx.clearRect(0,0,outCanvas.width,outCanvas.height); ctx.drawImage(frames[f++],0,0);
-            setExportProgress(50 + Math.round((f / frames.length) * 50));
+            if (f >= frames.length) { 
+              clearInterval(int); 
+              setTimeout(() => recorder.stop(), 500); 
+              return; 
+            }
+            ctx.clearRect(0,0,outCanvas.width,outCanvas.height); 
+            ctx.drawImage(frames[f++],0,0);
+            setExportProgress(40 + Math.round((f / frames.length) * 60));
           }, 1000/fps);
         }
       } else {
         const imageOptions = { ...baseExportOptions, pixelRatio };
-        let dataUrl = (exportFormat === "jpeg") ? await toJpeg(canvasRef.current!, { ...imageOptions, quality: 0.95 }) : (exportFormat === "svg" ? await toSvg(canvasRef.current!, imageOptions) : await toPng(canvasRef.current!, imageOptions));
-        const link = document.createElement("a"); link.download = `booth-mockup.${exportFormat}`; link.href = dataUrl; link.click();
+        let dataUrl = (exportFormat === "jpeg") ? await toJpeg(canvasRef.current!, { ...imageOptions, quality: 0.98 }) : (exportFormat === "svg" ? await toSvg(canvasRef.current!, imageOptions) : await toPng(canvasRef.current!, imageOptions));
+        const link = document.createElement("a"); link.download = `booth-export.${exportFormat}`; link.href = dataUrl; link.click();
         setExporting(false);
       }
     } catch (err) { console.error(err); setExporting(false); toast.error("Export failed."); }
@@ -339,7 +365,7 @@ const Index = () => {
             <Select value={exportFormat} onValueChange={(v: any) => setExportFormat(v)}>
               <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-[11px] font-bold"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {mode === "mockup" ? (<><SelectItem value="png">PNG</SelectItem><SelectItem value="jpeg">JPEG</SelectItem></>) : (<><SelectItem value="video">MP4</SelectItem><SelectItem value="gif">GIF</SelectItem></>)}
+                {mode === "mockup" ? (<><SelectItem value="png">PNG</SelectItem><SelectItem value="jpeg">JPEG</SelectItem></>) : (<><SelectItem value="video">MP4/WebM</SelectItem><SelectItem value="gif">GIF</SelectItem></>)}
               </SelectContent>
             </Select>
             <div className="w-px h-4 bg-border/40" />
@@ -359,9 +385,10 @@ const Index = () => {
 
       {exporting && (
         <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-xl flex flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
-           <div className="w-[300px] space-y-4">
-              <div className="flex justify-between items-end"><Label className="text-xl font-black uppercase tracking-tighter">{exportStatus}</Label><span className="text-xs font-mono">{exportProgress}%</span></div>
-              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary transition-all duration-300" style={{ width: `${exportProgress}%` }} /></div>
+           <div className="w-[320px] space-y-4 text-center">
+              <div className="flex justify-between items-end"><Label className="text-xl font-black uppercase tracking-tighter text-primary">{exportStatus}</Label><span className="text-xs font-mono">{exportProgress}%</span></div>
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border/40"><div className="h-full bg-primary transition-all duration-300" style={{ width: `${exportProgress}%` }} /></div>
+              <p className="text-[10px] uppercase font-bold opacity-40">Please keep this tab active while we render your art.</p>
            </div>
         </div>
       )}
