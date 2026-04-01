@@ -21,11 +21,12 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import DeviceFrame, { type DeviceType } from "@/components/DeviceFrame";
 import { 
-  Upload, Download, Smartphone, Tablet, Laptop, ImageIcon, 
-  Play, RotateCcw, Crosshair, Move, Timer, Moon, Sun, Monitor, 
-  Layers, Sparkles, Video, Boxes, Palette, Zap, Plus, Trash2
+  Upload, Smartphone, ImageIcon, 
+  Play, RotateCcw, Moon, Sun, Monitor, 
+  Layers, Sparkles, Video, Palette, Plus, Trash2, Boxes, Crosshair
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "video" | "gif";
 type CanvasRatio = "16:9" | "9:16" | "1:1" | "4:5";
@@ -75,7 +76,6 @@ const Index = () => {
   const [animEndScale, setAnimEndScale] = useState(90);
   const [animStartRot, setAnimStartRot] = useState(0);
   const [animEndRot, setAnimEndRot] = useState(0);
-  const [animRotDirection, setAnimRotDirection] = useState<"cw" | "ccw">("cw");
   const [animStartX, setAnimStartX] = useState(0);
   const [animStartY, setAnimStartY] = useState(0);
   const [animEndX, setAnimEndX] = useState(0);
@@ -107,7 +107,8 @@ const Index = () => {
   const animTargetRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
-  const mainAreaRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const animationFrameRef = useRef<number>();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -117,11 +118,8 @@ const Index = () => {
 
   // Sync export format when switching modes
   useEffect(() => {
-    if (mode === "animation") {
-      setExportFormat("video");
-    } else {
-      setExportFormat("png");
-    }
+    if (mode === "animation") setExportFormat("video");
+    else setExportFormat("png");
   }, [mode]);
 
   const canvasDimensions = useMemo(() => {
@@ -139,20 +137,19 @@ const Index = () => {
   const CANVAS_HEIGHT = canvasDimensions.height;
 
   const calculateScale = useCallback(() => {
-    if (!mainAreaRef.current) return;
-    const { width, height } = mainAreaRef.current.getBoundingClientRect();
-    const padding = 100;
-    const availableWidth = width - padding;
-    const availableHeight = height - padding;
+    if (!stageRef.current) return;
+    const { width, height } = stageRef.current.getBoundingClientRect();
+    const availableWidth = width - 80;
+    const availableHeight = height - 80;
     const scaleX = availableWidth / CANVAS_WIDTH;
     const scaleY = availableHeight / CANVAS_HEIGHT;
-    setPreviewScale(Math.min(scaleX, scaleY));
+    setPreviewScale(Math.min(scaleX, scaleY, 1.0));
   }, [CANVAS_WIDTH, CANVAS_HEIGHT]);
 
   useEffect(() => {
     calculateScale();
     const observer = new ResizeObserver(calculateScale);
-    if (mainAreaRef.current) observer.observe(mainAreaRef.current);
+    if (stageRef.current) observer.observe(stageRef.current);
     return () => observer.disconnect();
   }, [calculateScale]);
 
@@ -173,11 +170,7 @@ const Index = () => {
   };
 
   const addGradientStop = () => {
-    const newStop: GradientStop = {
-      id: Math.random().toString(36).substr(2, 9),
-      color: "#ffffff",
-      stop: 50
-    };
+    const newStop: GradientStop = { id: Math.random().toString(36).substr(2, 9), color: "#ffffff", stop: 50 };
     setGradientStops([...gradientStops, newStop]);
   };
 
@@ -194,20 +187,10 @@ const Index = () => {
     if (transparent) return { backgroundColor: "transparent" };
     if (bgType === "solid") return { backgroundColor: bgColor };
     if (bgType === "gradient") {
-      const stopsStr = [...gradientStops]
-        .sort((a, b) => a.stop - b.stop)
-        .map(s => `${s.color} ${s.stop}%`)
-        .join(", ");
-      return bgGradientType === "linear" 
-        ? { backgroundImage: `linear-gradient(${bgGradientAngle}deg, ${stopsStr})` }
-        : { backgroundImage: `radial-gradient(circle at ${bgRadialX}% ${bgRadialY}%, ${stopsStr})` };
+      const stopsStr = [...gradientStops].sort((a, b) => a.stop - b.stop).map(s => `${s.color} ${s.stop}%`).join(", ");
+      return bgGradientType === "linear" ? { backgroundImage: `linear-gradient(${bgGradientAngle}deg, ${stopsStr})` } : { backgroundImage: `radial-gradient(circle at ${bgRadialX}% ${bgRadialY}%, ${stopsStr})` };
     }
-    return { 
-      backgroundImage: bgImage ? `url(${bgImage})` : 'none', 
-      backgroundSize: 'cover', 
-      backgroundPosition: 'center',
-      backgroundColor: bgColor 
-    };
+    return { backgroundImage: bgImage ? `url(${bgImage})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: bgColor };
   };
 
   const getInterpolatedTransform = useCallback((t: number) => {
@@ -222,31 +205,42 @@ const Index = () => {
       return time;
     };
     const easeT = getEasingT(t);
-    const actualEndRot = (() => {
-        if (animStartRot === animEndRot) return animEndRot;
-        if (animRotDirection === "cw" && animEndRot < animStartRot) return animEndRot + 360;
-        if (animRotDirection === "ccw" && animEndRot > animStartRot) return animEndRot - 360;
-        return animEndRot;
-    })();
-
     return {
       s: animStartScale + (animEndScale - animStartScale) * easeT,
-      r: animStartRot + (actualEndRot - animStartRot) * easeT,
+      r: animStartRot + (animEndRot - animStartRot) * easeT,
       x: canvasX + (animStartX + (animEndX - animStartX) * easeT),
       y: canvasY + (animStartY + (animEndY - animStartY) * easeT)
     };
-  }, [animEasing, animStartRot, animEndRot, animRotDirection, animStartScale, animEndScale, canvasX, canvasY, animStartX, animEndX, animStartY, animEndY]);
+  }, [animEasing, animStartRot, animEndRot, animStartScale, animEndScale, canvasX, canvasY, animStartX, animEndX, animStartY, animEndY]);
+
+  const previewState = useMemo(() => {
+    if (mode === "mockup") return { s: deviceScale, r: 0, x: canvasX, y: canvasY };
+    return getInterpolatedTransform((scrubProgress || 0) / 100);
+  }, [mode, deviceScale, canvasX, canvasY, getInterpolatedTransform, scrubProgress]);
 
   const handlePlayAnimation = () => {
-    setIsPlaying(false);
+    if (isPlaying) {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      setIsPlaying(false);
+      return;
+    }
+    setIsPlaying(true);
     setScrubProgress(0);
-    setTimeout(() => { setIsPlaying(true); setScrubProgress(100); }, 50);
+    const startTime = performance.now();
+    const durationMs = Math.max((animDuration || 2) * 1000, 100);
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / durationMs, 1);
+      setScrubProgress(progress * 100);
+      if (progress < 1) animationFrameRef.current = requestAnimationFrame(animate);
+      else setIsPlaying(false);
+    };
+    animationFrameRef.current = requestAnimationFrame(animate);
   };
 
   const handleExport = useCallback(async () => {
     if (!canvasRef.current) return;
     setExporting(true); setExportProgress(0); setExportStatus("Preparing Stage...");
-    
     try {
       const pixelRatio = parseFloat(exportQuality);
       let effectiveBgColor = (exportFormat === "jpeg") ? ((transparent || bgType !== "solid") ? "#ffffff" : bgColor) : (transparent ? "rgba(0,0,0,0)" : (bgType === "solid" ? bgColor : "rgba(0,0,0,0)"));
@@ -259,8 +253,7 @@ const Index = () => {
         const frames: HTMLCanvasElement[] = [];
         const el = canvasRef.current;
         const targetNode = animTargetRef.current!;
-        const originalTransition = targetNode.style.transitionProperty;
-        targetNode.style.transitionProperty = 'none';
+        targetNode.style.transition = 'none';
         
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
@@ -269,7 +262,6 @@ const Index = () => {
             frames.push(await toCanvas(el, { ...baseExportOptions, pixelRatio: isGif ? 0.5 : 1 }));
             setExportProgress(Math.round((i / totalFrames) * 50));
         }
-        targetNode.style.transitionProperty = originalTransition;
 
         if (isGif) {
           setExportStatus("Encoding GIF...");
@@ -309,13 +301,8 @@ const Index = () => {
         const link = document.createElement("a"); link.download = `booth-mockup.${exportFormat}`; link.href = dataUrl; link.click();
         setExporting(false);
       }
-    } catch (err) { console.error(err); setExporting(false); }
+    } catch (err) { console.error(err); setExporting(false); toast.error("Export failed."); }
   }, [transparent, bgColor, exportFormat, exportQuality, animDuration, animEasing, canvasX, canvasY, bgType, bgImage, CANVAS_WIDTH, CANVAS_HEIGHT, getInterpolatedTransform]);
-
-  const previewState = useMemo(() => {
-      if (mode === "mockup") return { s: deviceScale, r: 0, x: canvasX, y: canvasY };
-      return getInterpolatedTransform(scrubProgress / 100);
-  }, [mode, deviceScale, canvasX, canvasY, getInterpolatedTransform, scrubProgress]);
 
   const glassCard = "bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-4 shadow-xl shadow-black/5";
 
@@ -343,41 +330,22 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-muted/40 rounded-full px-3 py-1 gap-2 border border-border/40 mr-2">
             <Select value={exportFormat} onValueChange={(v: any) => setExportFormat(v)}>
-              <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-[11px] font-bold">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="h-8 w-[100px] border-none bg-transparent shadow-none text-[11px] font-bold"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {mode === "mockup" ? (
-                  <>
-                    <SelectItem value="png">PNG</SelectItem>
-                    <SelectItem value="jpeg">JPEG</SelectItem>
-                  </>
-                ) : (
-                  <>
-                    <SelectItem value="video">MP4</SelectItem>
-                    <SelectItem value="gif">GIF</SelectItem>
-                  </>
-                )}
+                {mode === "mockup" ? (<><SelectItem value="png">PNG</SelectItem><SelectItem value="jpeg">JPEG</SelectItem></>) : (<><SelectItem value="video">MP4</SelectItem><SelectItem value="gif">GIF</SelectItem></>)}
               </SelectContent>
             </Select>
             <div className="w-px h-4 bg-border/40" />
             <Select value={exportQuality} onValueChange={setExportQuality}>
-              <SelectTrigger className="h-8 w-[60px] border-none bg-transparent shadow-none text-[11px] font-bold">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1x</SelectItem>
-                <SelectItem value="2">2x</SelectItem>
-                <SelectItem value="3">3x</SelectItem>
-              </SelectContent>
+              <SelectTrigger className="h-8 w-[60px] border-none bg-transparent shadow-none text-[11px] font-bold"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="1">1x</SelectItem><SelectItem value="2">2x</SelectItem><SelectItem value="3">3x</SelectItem></SelectContent>
             </Select>
           </div>
-          
           <Button variant="outline" size="icon" className="rounded-full bg-background/40" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
           <Button onClick={handleExport} disabled={exporting || !image} className="rounded-full px-6 font-bold shadow-md">
-            {exporting ? "Exporting..." : "Export"}
+            {exporting ? "Wait..." : "Export"}
           </Button>
         </div>
       </header>
@@ -403,7 +371,7 @@ const Index = () => {
               </Button>
             </div>
 
-            <Accordion type="multiple" defaultValue={["frame", "background", "appearance"]} className="space-y-4">
+            <Accordion type="multiple" defaultValue={[]} className="space-y-4">
               <AccordionItem value="frame" className="border-none">
                 <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Device Frame</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 grid grid-cols-2 gap-2">
@@ -416,32 +384,19 @@ const Index = () => {
               </AccordionItem>
 
               <AccordionItem value="background" className="border-none">
-                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Palette className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Background Style</span></div></AccordionTrigger>
+                <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Palette className="w-4 h-4 text-primary" /><span className="text-[11px] font-bold uppercase tracking-wider">Background</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 space-y-6">
                   <div className="flex items-center justify-between bg-muted/30 p-3 rounded-xl">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Transparent Canvas</Label>
+                    <Label className="text-[10px] font-bold uppercase opacity-60">Transparent Background</Label>
                     <Switch checked={transparent} onCheckedChange={setTransparent} />
                   </div>
-
                   {!transparent && (
                     <div className="space-y-4">
                       <Tabs value={bgType} onValueChange={(v: any) => setBgType(v)}>
-                        <TabsList className="w-full h-8 bg-muted/40 rounded-lg">
-                          <TabsTrigger value="solid" className="flex-1 text-[10px]">Solid</TabsTrigger>
-                          <TabsTrigger value="gradient" className="flex-1 text-[10px]">Gradient</TabsTrigger>
-                          <TabsTrigger value="image" className="flex-1 text-[10px]">Image</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="solid" className="pt-3 flex gap-2">
-                          <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-8 h-8 rounded-lg cursor-pointer" />
-                          <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="font-mono h-8 text-[10px]" />
-                        </TabsContent>
-
+                        <TabsList className="w-full h-8 bg-muted/40 rounded-lg"><TabsTrigger value="solid" className="flex-1 text-[10px]">Solid</TabsTrigger><TabsTrigger value="gradient" className="flex-1 text-[10px]">Gradient</TabsTrigger><TabsTrigger value="image" className="flex-1 text-[10px]">Image</TabsTrigger></TabsList>
+                        <TabsContent value="solid" className="pt-3 flex gap-2"><input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-8 h-8 rounded-lg cursor-pointer" /><Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="font-mono h-8 text-[10px]" /></TabsContent>
                         <TabsContent value="gradient" className="pt-3 space-y-4">
-                          <Select value={bgGradientType} onValueChange={(v: any) => setBgGradientType(v)}>
-                            <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="linear">Linear</SelectItem><SelectItem value="radial">Radial</SelectItem></SelectContent>
-                          </Select>
+                          <Select value={bgGradientType} onValueChange={(v: any) => setBgGradientType(v)}><SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="linear">Linear</SelectItem><SelectItem value="radial">Radial</SelectItem></SelectContent></Select>
                           <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                             {gradientStops.map((stop) => (
                               <div key={stop.id} className="flex items-center gap-2 bg-muted/20 p-2 rounded-lg">
@@ -454,13 +409,9 @@ const Index = () => {
                           </div>
                           <Button variant="outline" size="sm" className="w-full h-7 text-[9px] font-bold" onClick={addGradientStop}><Plus className="w-3 h-3 mr-1" /> Add Color Stop</Button>
                         </TabsContent>
-
                         <TabsContent value="image" className="pt-3 space-y-3">
                           <input ref={bgFileInputRef} type="file" accept="image/*" onChange={handleBgImageUpload} className="hidden" />
-                          <Button variant="outline" className="w-full h-20 rounded-xl border-dashed border-2 flex flex-col gap-1" onClick={() => bgFileInputRef.current?.click()}>
-                            <ImageIcon className="w-4 h-4" />
-                            <span className="text-[10px] font-black uppercase">{bgImage ? "Change Image" : "Upload Background"}</span>
-                          </Button>
+                          <Button variant="outline" className="w-full h-20 rounded-xl border-dashed border-2 flex flex-col gap-1" onClick={() => bgFileInputRef.current?.click()}><ImageIcon className="w-4 h-4" /><span className="text-[10px] font-black uppercase">{bgImage ? "Change Image" : "Upload Background"}</span></Button>
                         </TabsContent>
                       </Tabs>
                     </div>
@@ -474,7 +425,12 @@ const Index = () => {
                    {mode === "mockup" ? (
                      <div className="space-y-6">
                         <div className="space-y-3"><div className="flex justify-between"><Label className="text-[10px] uppercase font-bold">Scale</Label><span className="text-[10px]">{deviceScale}%</span></div><Slider value={[deviceScale]} onValueChange={(v) => setDeviceScale(v[0])} min={20} max={120} /></div>
-                        <div className="space-y-3"><Label className="text-[10px] uppercase font-bold">Canvas Offset</Label><Slider value={[canvasX]} onValueChange={(v) => setCanvasX(v[0])} min={-800} max={800} /><Slider value={[canvasY]} onValueChange={(v) => setCanvasY(v[0])} min={-800} max={800} /></div>
+                        <div className="space-y-3">
+                          <Label className="text-[10px] uppercase font-bold">Canvas Offset</Label>
+                          <Slider value={[canvasX]} onValueChange={(v) => setCanvasX(v[0])} min={-800} max={800} />
+                          <Slider value={[canvasY]} onValueChange={(v) => setCanvasY(v[0])} min={-800} max={800} />
+                          <Button variant="outline" size="sm" className="w-full h-7 text-[9px] font-bold gap-2" onClick={() => { setCanvasX(0); setCanvasY(0); }}><Crosshair className="w-3 h-3" /> Center Position</Button>
+                        </div>
                      </div>
                    ) : (
                      <div className="space-y-6">
@@ -483,21 +439,31 @@ const Index = () => {
                           <Select value={animEasing} onValueChange={setAnimEasing}>
                             <SelectTrigger className="h-10 rounded-xl font-bold"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="ease-in-out">Easy Ease (Smooth)</SelectItem>
-                              <SelectItem value="ease-in">Ease In (Accelerate)</SelectItem>
-                              <SelectItem value="ease-out">Ease Out (Decelerate)</SelectItem>
-                              <SelectItem value="bouncy">Bouncy (Spring)</SelectItem>
-                              <SelectItem value="linear">Linear (Constant)</SelectItem>
+                              <SelectItem value="ease-in-out">Easy Ease</SelectItem>
+                              <SelectItem value="ease-in">Ease In</SelectItem>
+                              <SelectItem value="ease-out">Ease Out</SelectItem>
+                              <SelectItem value="bouncy">Bouncy</SelectItem>
+                              <SelectItem value="linear">Linear</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="bg-primary/5 p-3 rounded-xl border border-primary/10">
-                           <div className="flex items-center justify-between mb-3"><Label className="text-[10px] font-black uppercase text-primary">Timeline</Label><span className="text-[10px] font-mono text-primary">{scrubProgress}%</span></div>
-                           <Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} />
-                           <div className="flex gap-2 mt-4"><Button onClick={handlePlayAnimation} className="flex-1 h-9 rounded-lg font-black text-[10px] uppercase"><Play className="w-3 h-3 mr-2" /> Play Preview</Button><Button variant="outline" size="icon" onClick={() => setScrubProgress(0)} className="h-9 w-9"><RotateCcw className="w-3 h-3" /></Button></div>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center"><Label className="text-[10px] uppercase font-bold">Duration</Label><span className="text-[10px] font-mono">{animDuration}s</span></div>
+                            <Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.1} />
                         </div>
-                        <div className="space-y-2"><Label className="text-[9px] uppercase opacity-40">Start Frame (X/Y)</Label><Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} /><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} /></div>
-                        <div className="space-y-2"><Label className="text-[9px] uppercase opacity-40">End Frame (X/Y)</Label><Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} /><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} /></div>
+                        <div className="space-y-2 pt-2 border-t border-border/20">
+                          <Label className="text-[9px] uppercase opacity-40 font-bold">Motion Path</Label>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                               <div className="flex justify-between items-center"><Label className="text-[8px] uppercase">Start X/Y</Label><Button variant="ghost" size="icon" className="h-4 w-4 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
+                               <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} /><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} />
+                            </div>
+                            <div className="space-y-2">
+                               <div className="flex justify-between items-center"><Label className="text-[8px] uppercase">End X/Y</Label><Button variant="ghost" size="icon" className="h-4 w-4 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button></div>
+                               <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} /><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} />
+                            </div>
+                          </div>
+                        </div>
                      </div>
                    )}
                 </AccordionContent>
@@ -506,34 +472,41 @@ const Index = () => {
           </div>
         </aside>
 
-        <main ref={mainAreaRef} className="flex-1 relative overflow-hidden flex flex-col items-center justify-center p-8 bg-muted/5">
-          <div className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-[0.08]" 
-               style={{ backgroundImage: "linear-gradient(#000 1.5px, transparent 1.5px), linear-gradient(90deg, #000 1.5px, transparent 1.5px)", backgroundSize: "40px 40px" }} />
-          
-          <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" 
-               style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
-            
-            <div ref={canvasRef} className="w-full h-full relative overflow-hidden bg-background pointer-events-auto" style={getCanvasBackgroundStyles()}>
-              {transparent && <div className="absolute inset-0" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
-
-              <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
-                style={{ 
-                  transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, 
-                  transitionProperty: isPlaying ? 'transform' : 'none', 
-                  transitionDuration: isPlaying ? `${animDuration}s` : '0s', 
-                  transitionTimingFunction: (animEasing === 'bouncy' && isPlaying) ? 'cubic-bezier(0.175, 0.885, 0.32, 1.275)' : animEasing 
-                }}>
-                <div className="pointer-events-auto">
-                    <DeviceFrame 
-                      device={device} image={image} 
-                      dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} dropShadowColor={dropShadowColor} 
-                      innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} 
-                      onUploadClick={() => fileInputRef.current?.click()} 
-                    />
+        <main className="flex-1 flex flex-col relative overflow-hidden bg-muted/5">
+          <div ref={stageRef} className="flex-1 flex items-center justify-center relative overflow-hidden p-10">
+            <div className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-[0.08]" style={{ backgroundImage: "linear-gradient(#000 1.5px, transparent 1.5px), linear-gradient(90deg, #000 1.5px, transparent 1.5px)", backgroundSize: "40px 40px" }} />
+            <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
+              <div ref={canvasRef} className="w-full h-full relative overflow-hidden bg-background pointer-events-auto" style={getCanvasBackgroundStyles()}>
+                {transparent && <div className="absolute inset-0" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
+                <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
+                  style={{ transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, transition: 'none' }}>
+                  <div className="pointer-events-auto">
+                      <DeviceFrame device={device} image={image} dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} dropShadowColor={dropShadowColor} innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} onUploadClick={() => fileInputRef.current?.click()} />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {mode === "animation" && (
+            <div className="shrink-0 w-full flex justify-center pb-12 px-8 pt-4 z-50">
+              <div className="w-[850px] max-w-full bg-background border border-border/80 p-6 rounded-[2.5rem] shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-8">
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-4">
+                    <Button onClick={handlePlayAnimation} variant={isPlaying ? "destructive" : "default"} className="h-12 w-12 rounded-full shadow-lg">
+                      {isPlaying ? <span className="font-black text-[10px]">STOP</span> : <Play className="fill-current w-5 h-5" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setIsPlaying(false); setScrubProgress(0); }} className="h-10 w-10 rounded-full bg-muted/40"><RotateCcw className="w-4 h-4" /></Button>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Label className="text-[10px] font-black tracking-widest text-primary uppercase opacity-70">Animation Scrubber</Label>
+                    <span className="text-xl font-mono font-bold leading-none">{(scrubProgress || 0).toFixed(1)}%</span>
+                  </div>
+                </div>
+                <div className="px-2"><Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} className="h-4" /></div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
