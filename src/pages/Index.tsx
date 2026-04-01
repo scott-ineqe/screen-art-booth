@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { toPng } from "html-to-image";
+import { toPng, toJpeg, toSvg, toCanvas } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -91,7 +91,7 @@ const Index = () => {
   const animTargetRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
-  const mainAreaRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
@@ -114,34 +114,27 @@ const Index = () => {
   const CANVAS_WIDTH = canvasDimensions.width;
   const CANVAS_HEIGHT = canvasDimensions.height;
 
-  // Reserved space height for the scrubber dashboard
-  const SCRUBBER_RESERVED_HEIGHT = 200;
-
   const calculateScale = useCallback(() => {
-    if (!mainAreaRef.current) return;
-    const { width, height } = mainAreaRef.current.getBoundingClientRect();
+    if (!stageRef.current) return;
+    const { width, height } = stageRef.current.getBoundingClientRect();
     
-    // Dynamically adjust padding based on mode to prevent scrubber clipping
-    const paddingX = 120;
-    const paddingY = mode === "animation" ? SCRUBBER_RESERVED_HEIGHT + 100 : 120; 
-    
-    const availableWidth = width - paddingX;
-    const availableHeight = height - paddingY;
+    // We provide 80px padding within the stage area
+    const availableWidth = width - 80;
+    const availableHeight = height - 80;
     
     const scaleX = availableWidth / CANVAS_WIDTH;
     const scaleY = availableHeight / CANVAS_HEIGHT;
     
-    setPreviewScale(Math.min(scaleX, scaleY, 1.0)); // Don't scale beyond 100%
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT, mode]);
+    setPreviewScale(Math.min(scaleX, scaleY, 1.0));
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT]);
 
   useEffect(() => {
     calculateScale();
     const observer = new ResizeObserver(calculateScale);
-    if (mainAreaRef.current) observer.observe(mainAreaRef.current);
+    if (stageRef.current) observer.observe(stageRef.current);
     return () => observer.disconnect();
   }, [calculateScale]);
 
-  // Clean up animation on unmount
   useEffect(() => {
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
@@ -235,7 +228,7 @@ const Index = () => {
     setScrubProgress(0);
     
     const startTime = performance.now();
-    const durationMs = Math.max((animDuration || 2) * 1000, 100); // Ensure at least 100ms
+    const durationMs = Math.max((animDuration || 2) * 1000, 100);
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -426,47 +419,55 @@ const Index = () => {
           </div>
         </aside>
 
-        <main ref={mainAreaRef} className="flex-1 relative overflow-hidden flex flex-col items-center justify-center p-8 bg-muted/5 gap-8">
-          <div className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-[0.08]" style={{ backgroundImage: "linear-gradient(#000 1.5px, transparent 1.5px), linear-gradient(90deg, #000 1.5px, transparent 1.5px)", backgroundSize: "40px 40px" }} />
-          
-          <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
-            <div ref={canvasRef} className="w-full h-full relative overflow-hidden bg-background pointer-events-auto" style={getCanvasBackgroundStyles()}>
-              {transparent && <div className="absolute inset-0" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
-              <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
-                style={{ 
-                  transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, 
-                  transition: 'none' 
-                }}>
-                <div className="pointer-events-auto">
-                    <DeviceFrame 
-                      device={device} image={image} 
-                      dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} dropShadowColor={dropShadowColor} 
-                      innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} 
-                      onUploadClick={() => fileInputRef.current?.click()} 
-                    />
+        <main className="flex-1 flex flex-col relative overflow-hidden bg-muted/5">
+          {/* STAGE AREA: Automatically shrinks to make room for scrubber */}
+          <div ref={stageRef} className="flex-1 flex items-center justify-center relative overflow-hidden p-10">
+            <div className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-[0.08]" style={{ backgroundImage: "linear-gradient(#000 1.5px, transparent 1.5px), linear-gradient(90deg, #000 1.5px, transparent 1.5px)", backgroundSize: "40px 40px" }} />
+            
+            <div className="relative z-10 shadow-[0_100px_200px_-50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out border-4 border-white/10" 
+                 style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${previewScale})`, aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}>
+              
+              <div ref={canvasRef} className="w-full h-full relative overflow-hidden bg-background pointer-events-auto" style={getCanvasBackgroundStyles()}>
+                {transparent && <div className="absolute inset-0" style={{ backgroundImage: "repeating-conic-gradient(#cbd5e1 0% 25%, #f1f5f9 0% 50%)", backgroundSize: "20px 20px" }} />}
+                <div ref={animTargetRef} className="z-10 absolute inset-0 flex items-center justify-center pointer-events-none"
+                  style={{ 
+                    transform: `translate(${previewState.x}px, ${previewState.y}px) scale(${previewState.s / 100}) rotate(${previewState.r}deg)`, 
+                    transition: 'none' 
+                  }}>
+                  <div className="pointer-events-auto">
+                      <DeviceFrame 
+                        device={device} image={image} 
+                        dropShadow={dropShadow} dropShadowAngle={dropShadowAngle} dropShadowAllSides={dropShadowAllSides} dropShadowColor={dropShadowColor} 
+                        innerGlow={innerGlow} innerGlowAngle={innerGlowAngle} 
+                        onUploadClick={() => fileInputRef.current?.click()} 
+                      />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* CONTROLS AREA: Pinned to bottom, reserved space */}
           {mode === "animation" && (
-            <div className="w-[800px] max-w-full bg-background border border-border/60 p-6 rounded-[2.5rem] shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-8 duration-700 z-50">
-              <div className="flex items-center justify-between px-2">
-                <div className="flex items-center gap-4">
-                  <Button onClick={handlePlayAnimation} variant={isPlaying ? "destructive" : "default"} className="h-12 w-12 rounded-full shadow-lg">
-                    {isPlaying ? <span className="font-black text-xs">STOP</span> : <Play className="fill-current w-5 h-5" />}
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => { setIsPlaying(false); setScrubProgress(0); }} className="h-10 w-10 rounded-full bg-muted/40">
-                    <RotateCcw className="w-4 h-4" />
-                  </Button>
+            <div className="shrink-0 w-full flex justify-center pb-12 px-8 pt-4 z-50">
+              <div className="w-[850px] max-w-full bg-background border border-border/80 p-6 rounded-[2.5rem] shadow-2xl flex flex-col gap-4">
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-4">
+                    <Button onClick={handlePlayAnimation} variant={isPlaying ? "destructive" : "default"} className="h-12 w-12 rounded-full shadow-lg">
+                      {isPlaying ? <span className="font-black text-[10px]">STOP</span> : <Play className="fill-current w-5 h-5" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setIsPlaying(false); setScrubProgress(0); }} className="h-10 w-10 rounded-full bg-muted/40">
+                      <RotateCcw className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Label className="text-[10px] font-black tracking-widest text-primary uppercase opacity-70">Animation Scrubber</Label>
+                    <span className="text-xl font-mono font-bold leading-none">{(scrubProgress || 0).toFixed(1)}%</span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <Label className="text-[10px] font-black tracking-widest text-primary uppercase">Scrubber Progress</Label>
-                  <span className="text-xl font-mono font-bold leading-none">{(scrubProgress || 0).toFixed(1)}%</span>
+                <div className="px-2">
+                  <Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} className="h-4" />
                 </div>
-              </div>
-              <div className="px-2">
-                <Slider value={[scrubProgress]} onValueChange={(v) => { setIsPlaying(false); setScrubProgress(v[0]); }} max={100} step={0.1} className="h-4" />
               </div>
             </div>
           )}
