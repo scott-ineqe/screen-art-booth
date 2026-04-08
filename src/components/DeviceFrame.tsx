@@ -79,7 +79,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     aspectRatio: 1080 / 2340, // Vertical phone ratio
     defaultWidth: 340, // Phone size
     screenArea: { top: "1.42%", left: "2.6%", width: "94.1%", height: "96.6%", borderRadius: "26.3px" }
-  }
+  },
   "pixel-10": {
     label: "Google Pixel 10",
     frameUrl: "/frames/google-pixel-8.png",
