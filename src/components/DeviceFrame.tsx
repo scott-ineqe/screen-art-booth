@@ -38,6 +38,13 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     defaultWidth: 620, // Tablet size
     screenArea: { top: "7.7%", left: "4.3%", width: "91.5%", height: "84.7%", borderRadius: "9.7px" }
   },
+  "ipad-pro": {
+    label: "iPad Pro 11",
+    frameUrl: "/frames/apple-ipad-pro-11.png",
+    aspectRatio: 2732 / 2048,
+    defaultWidth: 620, // Tablet size
+    screenArea: { top: "7.7%", left: "4.3%", width: "91.5%", height: "84.7%", borderRadius: "9.7px" }
+  },
   "macbook-pro-16": {
     label: "MacBook Pro 16",
     frameUrl: "/frames/macbook-pro-16.png",
@@ -52,6 +59,13 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     defaultWidth: 1000,
     screenArea: { top: "2.8%", left: "7.7%", width: "84.6%", height: "63.4%", borderRadius: "1px" }
   },
+  "apple-watch": {
+    label: "Apple Watch Series 6",
+    frameUrl: "/frames/imac-24-inch.png",
+    aspectRatio: 1920 / 1920,
+    defaultWidth: 1000,
+    screenArea: { top: "2.8%", left: "7.7%", width: "84.6%", height: "63.4%", borderRadius: "1px" }
+  },
   "samsung-galaxy-tab": {
     label: "Samsung Galaxy Tab",
     frameUrl: "/frames/samsung-galaxy-tab.png",
@@ -62,6 +76,13 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
   "samsung-galaxy-phone": {
     label: "Samsung Galaxy Phone",
     frameUrl: "/frames/samsung-galaxy-phone.png",
+    aspectRatio: 1080 / 2340, // Vertical phone ratio
+    defaultWidth: 340, // Phone size
+    screenArea: { top: "1.42%", left: "2.6%", width: "94.1%", height: "96.6%", borderRadius: "26.3px" }
+  }
+  "pixel-10": {
+    label: "Google Pixel 10",
+    frameUrl: "/frames/google-pixel-8.png",
     aspectRatio: 1080 / 2340, // Vertical phone ratio
     defaultWidth: 340, // Phone size
     screenArea: { top: "1.42%", left: "2.6%", width: "94.1%", height: "96.6%", borderRadius: "26.3px" }

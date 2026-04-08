@@ -492,7 +492,7 @@ const Index = () => {
               <AccordionItem value="frame" className="border-none">
                 <AccordionTrigger className={cn(glassCard, "hover:no-underline py-4")}><div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-primary" /><span className="text-sm font-bold uppercase tracking-wider">Device Frame</span></div></AccordionTrigger>
                 <AccordionContent className="pt-4 grid grid-cols-2 gap-2">
-                  {["iphone17", "ipad-air", "macbook-pro-16", "imac-24-inch", "samsung-galaxy-tab", "samsung-galaxy-phone"].map((id) => (
+                  {["iphone17", "ipad-air", "ipad-pro", "macbook-pro-16", "imac-24-inch", "apple-watch", "samsung-galaxy-tab", "samsung-galaxy-phone", "pixel-10"].map((id) => (
                     <button key={id} onClick={() => setDevice(id as DeviceType)} className={cn("p-3 rounded-xl border transition-all text-xs font-black uppercase", device === id ? "bg-primary text-primary-foreground border-primary" : "bg-background/40 border-border/40")}>
                       {id.replace(/-/g, ' ')}
                     </button>
