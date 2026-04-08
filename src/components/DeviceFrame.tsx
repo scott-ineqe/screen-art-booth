@@ -64,7 +64,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/apple-watch.png",
     aspectRatio: 1920 / 1920,
     defaultWidth: 1000,
-    screenArea: { top: "2.8%", left: "7.7%", width: "84.6%", height: "63.4%", borderRadius: "1px" }
+    screenArea: { top: "24.6%", left: "27.9%", width: "41.9%", height: "50.95%", borderRadius: "78.84px" }
   },
   "samsung-galaxy-tab": {
     label: "Samsung Galaxy Tab",
