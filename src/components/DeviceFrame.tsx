@@ -43,14 +43,14 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/apple-ipad-pro-11.png",
     aspectRatio: 2732 / 2048,
     defaultWidth: 620, // Tablet size
-    screenArea: { top: "7.7%", left: "4.3%", width: "91.5%", height: "84.7%", borderRadius: "9.7px" }
+    screenArea: { top: "7%", left: "3.95%", width: "92.5%", height: "86.4%", borderRadius: "9.5px" }
   },
   "macbook-pro-16": {
     label: "MacBook Pro 16",
     frameUrl: "/frames/macbook-pro-16.png",
     aspectRatio: 3456 / 2234,
     defaultWidth: 850, // Laptop size
-    screenArea: { top: "6.3%", left: "9.3%", width: "81.4%", height: "81.48%", borderRadius: "1px" }
+    screenArea: { top: "6.2%", left: "9.35%", width: "81.3%", height: "81.4%", borderRadius: "1px" }
   },
   "imac-24-inch": {
     label: "iMac 2021 24 inch",
@@ -61,7 +61,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
   },
   "apple-watch": {
     label: "Apple Watch Series 6",
-    frameUrl: "/frames/imac-24-inch.png",
+    frameUrl: "/frames/apple-watch.png",
     aspectRatio: 1920 / 1920,
     defaultWidth: 1000,
     screenArea: { top: "2.8%", left: "7.7%", width: "84.6%", height: "63.4%", borderRadius: "1px" }
@@ -80,9 +80,16 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     defaultWidth: 340, // Phone size
     screenArea: { top: "1.42%", left: "2.6%", width: "94.1%", height: "96.6%", borderRadius: "26.3px" }
   },
+  "pixel-8": {
+    label: "Google Pixel 8",
+    frameUrl: "/frames/google-pixel-8.png",
+    aspectRatio: 1080 / 2340, // Vertical phone ratio
+    defaultWidth: 340, // Phone size
+    screenArea: { top: "1.42%", left: "2.6%", width: "94.1%", height: "96.6%", borderRadius: "26.3px" }
+  }
   "pixel-10": {
     label: "Google Pixel 10",
-    frameUrl: "/frames/google-pixel-8.png",
+    frameUrl: "/frames/pixel-10.png",
     aspectRatio: 1080 / 2340, // Vertical phone ratio
     defaultWidth: 340, // Phone size
     screenArea: { top: "1.42%", left: "2.6%", width: "94.1%", height: "96.6%", borderRadius: "26.3px" }
