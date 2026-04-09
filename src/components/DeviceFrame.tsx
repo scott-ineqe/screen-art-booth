@@ -92,7 +92,7 @@ const DEVICE_CONFIGS: Record<DeviceType, DeviceConfig> = {
     frameUrl: "/frames/pixel-10.png",
     aspectRatio: 1080 / 2340, // Vertical phone ratio
     defaultWidth: 340, // Phone size
-    screenArea: { top: "1.42%", left: "2.6%", width: "94.1%", height: "96.6%", borderRadius: "26.3px" }
+    screenArea: { top: "3.5%", left: "4.8%", width: "89.8%", height: "93%", borderRadius: "41.9px" }
   }
 };
 
