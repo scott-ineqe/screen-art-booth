@@ -658,10 +658,78 @@ const Index = () => {
                      <div className="space-y-6">
                         <div className="space-y-3"><Label className="text-sm font-black uppercase text-primary">Easing Curve</Label><Select value={animEasing} onValueChange={setAnimEasing}><SelectTrigger className="h-10 rounded-xl font-bold text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ease-in-out">Easy Ease</SelectItem><SelectItem value="ease-in">Ease In</SelectItem><SelectItem value="ease-out">Ease Out</SelectItem><SelectItem value="bouncy">Bouncy</SelectItem><SelectItem value="linear">Linear</SelectItem></SelectContent></Select></div>
                         <div className="space-y-3"><Label className="text-sm uppercase font-bold">Duration</Label><div className="flex items-center gap-4"><Slider value={[animDuration]} onValueChange={(v) => setAnimDuration(v[0])} min={0.5} max={10} step={0.1} className="flex-1" /><NumericInput value={animDuration} onChange={setAnimDuration} suffix="s" /></div></div>
-                        <div className="space-y-2 pt-2 border-t border-border/20"><Label className="text-sm uppercase opacity-60 font-bold">Frame Controls</Label><div className="space-y-6">
-                            <div className="space-y-3"><div className="flex justify-between items-center"><Label className="text-sm font-bold uppercase">Start Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimStartX(0); setAnimStartY(0); }}><Crosshair className="w-3 h-3" /></Button></div><div className="space-y-2"><div className="flex items-center gap-3"><Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animStartX} onChange={setAnimStartX} /></div><div className="flex items-center gap-3"><Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animStartY} onChange={setAnimStartY} /></div></div><div className="space-y-1"><Label className="text-sm uppercase opacity-60">Scale & Rotation</Label><div className="flex items-center gap-3"><Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} className="flex-1" /><NumericInput value={animStartScale} onChange={setAnimStartScale} suffix="%" /></div><div className="flex items-center gap-3"><Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} className="flex-1" /><NumericInput value={animStartRot} onChange={setAnimStartRot} suffix="°" /></div></div></div>
-                            <div className="space-y-3 border-t border-border/10 pt-4"><div className="flex justify-between items-center"><Label className="text-sm font-bold uppercase">End Frame</Label><Button variant="ghost" size="icon" className="h-5 w-5 opacity-40" onClick={() => { setAnimEndX(0); setAnimEndY(0); }}><Crosshair className="w-3 h-3" /></Button></div><div className="space-y-2"><div className="flex items-center gap-3"><Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animEndX} onChange={setAnimEndX} /></div><div className="flex items-center gap-3"><Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} className="flex-1" /><NumericInput value={animEndY} onChange={setAnimEndY} /></div></div><div className="space-y-1"><Label className="text-sm uppercase opacity-60">Scale & Rotation</Label><div className="flex items-center gap-3"><Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} className="flex-1" /><NumericInput value={animEndScale} onChange={setAnimEndScale} suffix="%" /></div><div className="flex items-center gap-3"><Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} className="flex-1" /><NumericInput value={animEndRot} onChange={setAnimEndRot} suffix="°" /></div></div></div>
-                          </div></div>
+                        
+                        <div className="space-y-3 pt-2 border-t border-border/20">
+                          <Label className="text-sm uppercase opacity-60 font-bold">Frame Controls</Label>
+                          <div className="space-y-4">
+                            
+                            {/* Start Frame Box */}
+                            <div className="bg-muted/10 p-4 rounded-xl border border-border/20 shadow-sm space-y-4">
+                              <div className="flex justify-between items-center border-b border-border/10 pb-2">
+                                <Label className="text-sm font-bold uppercase text-primary">Start Frame</Label>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] uppercase font-bold opacity-60 hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-colors gap-1" onClick={() => { setAnimStartX(0); setAnimStartY(0); setAnimStartScale(40); setAnimStartRot(0); }}>
+                                  <Crosshair className="w-3 h-3" /> Reset
+                                </Button>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3">
+                                  <Label className="text-xs uppercase opacity-60 w-12 shrink-0">X Axis</Label>
+                                  <Slider value={[animStartX]} onValueChange={(v) => setAnimStartX(v[0])} min={-800} max={800} className="flex-1" />
+                                  <NumericInput value={animStartX} onChange={setAnimStartX} />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Label className="text-xs uppercase opacity-60 w-12 shrink-0">Y Axis</Label>
+                                  <Slider value={[animStartY]} onValueChange={(v) => setAnimStartY(v[0])} min={-800} max={800} className="flex-1" />
+                                  <NumericInput value={animStartY} onChange={setAnimStartY} />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Label className="text-xs uppercase opacity-60 w-12 shrink-0">Scale</Label>
+                                  <Slider value={[animStartScale]} onValueChange={(v) => setAnimStartScale(v[0])} min={10} max={150} className="flex-1" />
+                                  <NumericInput value={animStartScale} onChange={setAnimStartScale} suffix="%" />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Label className="text-xs uppercase opacity-60 w-12 shrink-0">Rotate</Label>
+                                  <Slider value={[animStartRot]} onValueChange={(v) => setAnimStartRot(v[0])} min={-360} max={360} className="flex-1" />
+                                  <NumericInput value={animStartRot} onChange={setAnimStartRot} suffix="°" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* End Frame Box */}
+                            <div className="bg-muted/10 p-4 rounded-xl border border-border/20 shadow-sm space-y-4">
+                              <div className="flex justify-between items-center border-b border-border/10 pb-2">
+                                <Label className="text-sm font-bold uppercase text-primary">End Frame</Label>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] uppercase font-bold opacity-60 hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-colors gap-1" onClick={() => { setAnimEndX(0); setAnimEndY(0); setAnimEndScale(90); setAnimEndRot(0); }}>
+                                  <Crosshair className="w-3 h-3" /> Reset
+                                </Button>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3">
+                                  <Label className="text-xs uppercase opacity-60 w-12 shrink-0">X Axis</Label>
+                                  <Slider value={[animEndX]} onValueChange={(v) => setAnimEndX(v[0])} min={-800} max={800} className="flex-1" />
+                                  <NumericInput value={animEndX} onChange={setAnimEndX} />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Label className="text-xs uppercase opacity-60 w-12 shrink-0">Y Axis</Label>
+                                  <Slider value={[animEndY]} onValueChange={(v) => setAnimEndY(v[0])} min={-800} max={800} className="flex-1" />
+                                  <NumericInput value={animEndY} onChange={setAnimEndY} />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Label className="text-xs uppercase opacity-60 w-12 shrink-0">Scale</Label>
+                                  <Slider value={[animEndScale]} onValueChange={(v) => setAnimEndScale(v[0])} min={10} max={150} className="flex-1" />
+                                  <NumericInput value={animEndScale} onChange={setAnimEndScale} suffix="%" />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Label className="text-xs uppercase opacity-60 w-12 shrink-0">Rotate</Label>
+                                  <Slider value={[animEndRot]} onValueChange={(v) => setAnimEndRot(v[0])} min={-360} max={360} className="flex-1" />
+                                  <NumericInput value={animEndRot} onChange={setAnimEndRot} suffix="°" />
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+
                      </div>
                    )}
                 </AccordionContent>
