@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom"; // Added for the unlock mechanism
+import { useSearchParams } from "react-router-dom";
 import { toPng, toJpeg, toSvg, toCanvas } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -305,17 +305,18 @@ const Index = () => {
 
       if (exportFormat === "video" || exportFormat === "gif") {
         const isGif = exportFormat === "gif";
-        const fps = isGif ? 15 : 30; 
+        const fps = isGif ? 15 : 30; // 15 FPS for GIF keeps it fast, 30 FPS for MP4 keeps it smooth
         const totalFrames = Math.ceil(animDuration * fps);
         const frames: HTMLCanvasElement[] = [];
         const el = canvasRef.current;
         const targetNode = animTargetRef.current!;
         targetNode.style.transition = 'none';
         
+        // Capture frames efficiently using a controlled delay
         for (let i = 0; i <= totalFrames; i++) {
             const { s, r, x, y } = getInterpolatedTransform(i / totalFrames);
             targetNode.style.transform = `translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg)`;
-            await new Promise(res => setTimeout(res, 25)); 
+            await new Promise(res => setTimeout(res, 25)); // Allow DOM to update
             frames.push(await toCanvas(el, { ...baseExportOptions, pixelRatio }));
             setExportProgress(Math.round((i / totalFrames) * 40));
         }
@@ -323,11 +324,12 @@ const Index = () => {
         if (isGif) {
           setExportStatus("Quantizing GIF...");
           await loadGifJs();
+          // Load worker via blob to prevent cross-origin issues, ensuring it utilizes parallel processing correctly
           const workerReq = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
           const workerUrl = URL.createObjectURL(await workerReq.blob());
           const gif = new (window as any).GIF({ 
-            workers: 4, 
-            quality: 2, 
+            workers: 4, // Maximize parallel processing for speed
+            quality: 2, // Retain high quality
             width: frames[0].width, 
             height: frames[0].height, 
             workerScript: workerUrl, 
@@ -347,13 +349,20 @@ const Index = () => {
           const outCanvas = document.createElement('canvas'); 
           const frameWidth = frames[0].width;
           const frameHeight = frames[0].height;
+          // Ensure dimensions are even for video encoders
           outCanvas.width = frameWidth % 2 === 0 ? frameWidth : frameWidth - 1; 
           outCanvas.height = frameHeight % 2 === 0 ? frameHeight : frameHeight - 1;
           const ctx = outCanvas.getContext('2d')!;
+          
+          // Fallback to highest quality available codec
           const videoMimeTypes = ['video/mp4;codecs=avc1', 'video/webm;codecs=h264', 'video/webm'];
           const mimeType = videoMimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
           const stream = outCanvas.captureStream(fps);
-          const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
+          const recorder = new MediaRecorder(stream, { 
+            mimeType, 
+            videoBitsPerSecond: 8000000 // 8Mbps ensures no quality drop
+          });
+          
           const chunks: BlobPart[] = [];
           recorder.ondataavailable = e => chunks.push(e.data);
           recorder.onstop = () => {
@@ -365,6 +374,8 @@ const Index = () => {
             setExporting(false);
           };
           recorder.start();
+          
+          // Feed frames back through the canvas for encoding using requestAnimationFrame for non-blocking speed
           let f = 0;
           let lastTime = performance.now();
           const frameDelay = 1000 / fps; 
